@@ -34,7 +34,9 @@ export const tasks = pgTable('tasks', {
 
 export const projects = pgTable('projects', {
   id: serial('id').primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
+  projectVersion: varchar('project_version', { length: 100 }).notNull(),
+  projectCode: varchar('project_code', { length: 100 }).notNull(),
+  name: varchar('name', { length: 255 }), // optional
   description: text('description'),
   ownerId: integer('owner_id').references(() => users.id).notNull(),
   status: varchar('status', { length: 50 }).notNull().default('active'), // 'active', 'archived', 'completed'
@@ -51,4 +53,14 @@ export const projectMembers = pgTable('project_members', {
   userId: integer('user_id').references(() => users.id).notNull(),
   role: varchar('role', { length: 50 }).notNull().default('member'), // 'owner', 'admin', 'member', 'viewer'
   joinedAt: timestamp('joined_at').defaultNow().notNull(),
+});
+
+export const permissionRequests = pgTable('permission_requests', {
+  id: serial('id').primaryKey(),
+  projectId: integer('project_id').references(() => projects.id).notNull(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  status: varchar('status', { length: 50 }).notNull().default('pending'), // 'pending', 'approved', 'rejected'
+  requestedAt: timestamp('requested_at').defaultNow().notNull(),
+  resolvedAt: timestamp('resolved_at'),
+  resolvedBy: integer('resolved_by').references(() => users.id),
 });
