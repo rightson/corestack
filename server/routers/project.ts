@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { publicProcedure, router } from '@/lib/trpc/trpc';
-import { projects, projectMembers } from '@/lib/db/schema';
-import { eq, desc, and, or } from 'drizzle-orm';
+import { projects, projectMembers, permissionRequests, users } from '@/lib/db/schema';
+import { eq, desc, and, or, like, ilike, sql } from 'drizzle-orm';
 import { verifyToken } from '@/lib/auth/jwt';
 
 export const projectRouter = router({
@@ -38,7 +38,7 @@ export const projectRouter = router({
         .orderBy(desc(projects.updatedAt));
     }),
 
-  // Get all public projects
+  // Get all public projects with permission info
   getAllProjects: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -47,26 +47,101 @@ export const projectRouter = router({
         throw new Error('Unauthorized');
       }
 
-      // Get public projects and projects where user is a member
-      const memberProjects = await ctx.db
+      // Get all public projects
+      const allProjects = await ctx.db
+        .select()
+        .from(projects)
+        .where(eq(projects.visibility, 'public'))
+        .orderBy(desc(projects.lastAccessedAt));
+
+      // Get user's project memberships
+      const memberships = await ctx.db
         .select({ projectId: projectMembers.projectId })
         .from(projectMembers)
         .where(eq(projectMembers.userId, payload.userId));
 
-      const memberProjectIds = memberProjects.map((p) => p.projectId);
+      const memberProjectIds = new Set(memberships.map((m) => m.projectId));
 
-      return await ctx.db
+      // Get user's pending permission requests
+      const pendingRequests = await ctx.db
+        .select({ projectId: permissionRequests.projectId })
+        .from(permissionRequests)
+        .where(
+          and(
+            eq(permissionRequests.userId, payload.userId),
+            eq(permissionRequests.status, 'pending')
+          )
+        );
+
+      const requestedProjectIds = new Set(pendingRequests.map((r) => r.projectId));
+
+      // Add permission info to each project
+      return allProjects.map((project) => ({
+        ...project,
+        hasPermission: project.ownerId === payload.userId || memberProjectIds.has(project.id),
+        permissionRequested: requestedProjectIds.has(project.id),
+      }));
+    }),
+
+  // Search projects
+  searchProjects: publicProcedure
+    .input(
+      z.object({
+        token: z.string(),
+        query: z.string(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const payload = await verifyToken(input.token);
+      if (!payload) {
+        throw new Error('Unauthorized');
+      }
+
+      const searchTerm = `%${input.query}%`;
+
+      // Search in public projects by version, code, or name
+      const searchResults = await ctx.db
         .select()
         .from(projects)
         .where(
-          or(
+          and(
             eq(projects.visibility, 'public'),
-            and(
-              ...memberProjectIds.map((id) => eq(projects.id, id))
+            or(
+              ilike(projects.projectVersion, searchTerm),
+              ilike(projects.projectCode, searchTerm),
+              ilike(projects.name, searchTerm)
             )
           )
         )
-        .orderBy(desc(projects.updatedAt));
+        .orderBy(desc(projects.lastAccessedAt));
+
+      // Get user's project memberships
+      const memberships = await ctx.db
+        .select({ projectId: projectMembers.projectId })
+        .from(projectMembers)
+        .where(eq(projectMembers.userId, payload.userId));
+
+      const memberProjectIds = new Set(memberships.map((m) => m.projectId));
+
+      // Get user's pending permission requests
+      const pendingRequests = await ctx.db
+        .select({ projectId: permissionRequests.projectId })
+        .from(permissionRequests)
+        .where(
+          and(
+            eq(permissionRequests.userId, payload.userId),
+            eq(permissionRequests.status, 'pending')
+          )
+        );
+
+      const requestedProjectIds = new Set(pendingRequests.map((r) => r.projectId));
+
+      // Add permission info to each project
+      return searchResults.map((project) => ({
+        ...project,
+        hasPermission: project.ownerId === payload.userId || memberProjectIds.has(project.id),
+        permissionRequested: requestedProjectIds.has(project.id),
+      }));
     }),
 
   // Create a new project
@@ -74,7 +149,9 @@ export const projectRouter = router({
     .input(
       z.object({
         token: z.string(),
-        name: z.string().min(1),
+        projectVersion: z.string().min(1),
+        projectCode: z.string().min(1),
+        name: z.string().optional(),
         description: z.string().optional(),
         visibility: z.enum(['private', 'public']).default('private'),
       })
@@ -88,6 +165,8 @@ export const projectRouter = router({
       const result = await ctx.db
         .insert(projects)
         .values({
+          projectVersion: input.projectVersion,
+          projectCode: input.projectCode,
           name: input.name,
           description: input.description,
           ownerId: payload.userId,
@@ -105,7 +184,9 @@ export const projectRouter = router({
       z.object({
         token: z.string(),
         id: z.number(),
-        name: z.string().min(1).optional(),
+        projectVersion: z.string().optional(),
+        projectCode: z.string().optional(),
+        name: z.string().optional(),
         description: z.string().optional(),
         status: z.enum(['active', 'archived', 'completed']).optional(),
         visibility: z.enum(['private', 'public']).optional(),
@@ -167,6 +248,55 @@ export const projectRouter = router({
             eq(projects.ownerId, payload.userId)
           )
         );
+
+      return { success: true };
+    }),
+
+  // Request permission for a project
+  requestPermission: publicProcedure
+    .input(z.object({ token: z.string(), projectId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const payload = await verifyToken(input.token);
+      if (!payload) {
+        throw new Error('Unauthorized');
+      }
+
+      // Check if already has permission
+      const existing = await ctx.db
+        .select()
+        .from(projectMembers)
+        .where(
+          and(
+            eq(projectMembers.projectId, input.projectId),
+            eq(projectMembers.userId, payload.userId)
+          )
+        );
+
+      if (existing.length > 0) {
+        throw new Error('Already has permission');
+      }
+
+      // Check if already requested
+      const existingRequest = await ctx.db
+        .select()
+        .from(permissionRequests)
+        .where(
+          and(
+            eq(permissionRequests.projectId, input.projectId),
+            eq(permissionRequests.userId, payload.userId),
+            eq(permissionRequests.status, 'pending')
+          )
+        );
+
+      if (existingRequest.length > 0) {
+        throw new Error('Permission already requested');
+      }
+
+      // Create permission request
+      await ctx.db.insert(permissionRequests).values({
+        projectId: input.projectId,
+        userId: payload.userId,
+      });
 
       return { success: true };
     }),
