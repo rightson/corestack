@@ -2,8 +2,18 @@
 
 A modern, full-stack web application seed with Next.js, tRPC, Drizzle ORM, WebSocket support, and task queue functionality. Built with TypeScript and designed for both browser and CLI clients.
 
-## Tech Stack
+## Features
 
+### Core Functionality
+- ✅ **Type-safe API** with tRPC - End-to-end type safety from client to server
+- ✅ **Database ORM** with Drizzle (PostgreSQL) - Type-safe database queries and schema management
+- ✅ **Real-time Communication** - WebSocket server for bidirectional messaging
+- ✅ **Background Jobs** - Task queue with BullMQ and Redis
+- ✅ **CLI Client** - Command-line interface for API and WebSocket operations
+- ✅ **Authentication** - Email/password and LDAP authentication support
+- ✅ **Project Management** - Dashboard with project search and permission requests
+
+### Tech Stack
 - **Next.js 15** - React framework with App Router and Turbopack
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first CSS framework
@@ -14,60 +24,41 @@ A modern, full-stack web application seed with Next.js, tRPC, Drizzle ORM, WebSo
 - **PostgreSQL** - Primary database
 - **Redis** - Cache and queue backend
 
-## Features
-
-- ✅ Type-safe API with tRPC
-- ✅ Database ORM with Drizzle (PostgreSQL)
-- ✅ Real-time WebSocket communication
-- ✅ Background task queue (BullMQ + Redis)
-- ✅ CLI client for API and WebSocket
-- ✅ Browser client with React components
-- ✅ Authentication with email and LDAP
-- ✅ Project management interface
-
 ## Quick Start
 
 ### Prerequisites
-
 - Node.js 18+
-- Docker and Docker Compose (for PostgreSQL and Redis)
+- Docker and Docker Compose
 - npm or yarn
 
 ### Installation
 
-1. Clone the repository:
+1. Clone and install:
 ```bash
 git clone <repository-url>
 cd lightweight-web-seed
-```
-
-2. Install dependencies:
-```bash
 npm install
 ```
 
-3. Copy environment variables:
+2. Setup environment:
 ```bash
 cp .env.example .env
 ```
 
-4. Start PostgreSQL and Redis:
+3. Start services:
 ```bash
+# Start PostgreSQL and Redis
 docker-compose up -d
-```
 
-5. Run database migrations:
-```bash
+# Push database schema
 npm run db:push
 ```
 
-6. Start the development server:
+4. Run the application:
 ```bash
+# Terminal 1 - Next.js app
 npm run dev
-```
 
-7. In separate terminals, start the WebSocket server and queue worker:
-```bash
 # Terminal 2 - WebSocket server
 npm run ws:server
 
@@ -75,67 +66,54 @@ npm run ws:server
 npm run queue:worker
 ```
 
-8. Open [http://localhost:3000](http://localhost:3000) in your browser
+5. Open [http://localhost:3000](http://localhost:3000)
 
-## Scripts
+**Default credentials**: username: `root`, password: `Must-Changed`
+
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- **[Architecture](docs/ARCHITECTURE.md)** - System architecture and project structure
+- **[API Reference](docs/API.md)** - tRPC endpoints and WebSocket protocol
+- **[Database Guide](docs/DATABASE.md)** - Schema, migrations, and Drizzle ORM usage
+- **[Authentication](docs/AUTHENTICATION.md)** - Email/password and LDAP authentication
+- **[WebSocket Guide](docs/WEBSOCKET.md)** - Real-time communication setup and usage
+- **[Task Queue Guide](docs/TASK_QUEUE.md)** - Background job processing with BullMQ
+- **[CLI Guide](docs/CLI.md)** - Command-line interface usage
+- **[Development Guide](docs/DEVELOPMENT.md)** - Development workflow and adding features
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment and scaling
+
+## Common Commands
 
 ### Development
-- `npm run dev` - Start Next.js development server
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint
+```bash
+npm run dev          # Start Next.js development server
+npm run build        # Build for production
+npm start            # Start production server
+npm run lint         # Run ESLint
+```
 
 ### Database
-- `npm run db:generate` - Generate migrations
-- `npm run db:migrate` - Run migrations
-- `npm run db:push` - Push schema to database
-- `npm run db:studio` - Open Drizzle Studio
+```bash
+npm run db:push      # Push schema to database (development)
+npm run db:generate  # Generate migrations
+npm run db:migrate   # Run migrations (production)
+npm run db:studio    # Open Drizzle Studio
+```
 
 ### Services
-- `npm run ws:server` - Start WebSocket server
-- `npm run queue:worker` - Start queue worker
+```bash
+npm run ws:server     # Start WebSocket server
+npm run queue:worker  # Start queue worker
+```
 
 ### CLI
-- `npm run cli -- <command>` - Run CLI commands
-
-## CLI Usage
-
-The CLI client allows you to interact with the API and WebSocket server from the command line.
-
-### User Management
-
 ```bash
-# List all users
-npm run cli user list
-
-# Get user by ID
-npm run cli user get <id>
-
-# Create a new user
-npm run cli user create "John Doe" "john@example.com"
-
-# Delete a user
-npm run cli user delete <id>
-```
-
-### Post Management
-
-```bash
-# List all posts
-npm run cli post list
-
-# Create a post
-npm run cli post create "My Title" "Post content" --author <user-id>
-```
-
-### WebSocket
-
-```bash
-# Listen to a channel
-npm run cli ws listen demo
-
-# Send a message to a channel
-npm run cli ws send demo "Hello, World!"
+npm run cli user list                              # List all users
+npm run cli user create "John" "john@example.com"  # Create user
+npm run cli ws listen demo                         # Listen to WebSocket channel
+npm run cli ws send demo "Hello!"                  # Send WebSocket message
 ```
 
 ## Project Structure
@@ -143,21 +121,14 @@ npm run cli ws send demo "Hello, World!"
 ```
 lightweight-web-seed/
 ├── app/                    # Next.js app directory
-│   ├── api/               # API routes
-│   │   ├── trpc/         # tRPC endpoints
-│   │   └── queue/        # Queue endpoints
+│   ├── api/               # API routes (tRPC, queue)
 │   ├── login/            # Login page
-│   ├── projects/         # Projects page
-│   ├── layout.tsx        # Root layout
-│   └── page.tsx          # Home page
+│   └── projects/         # Projects dashboard
 ├── components/            # React components
-│   ├── UserList.tsx
-│   ├── WebSocketDemo.tsx
-│   └── TaskQueueDemo.tsx
 ├── lib/                   # Shared libraries
 │   ├── auth/             # Authentication
-│   ├── db/               # Database configuration
-│   ├── trpc/             # tRPC client/server
+│   ├── db/               # Database & schema
+│   ├── trpc/             # tRPC configuration
 │   ├── websocket/        # WebSocket client
 │   └── queue/            # Queue configuration
 ├── server/                # Server-side code
@@ -165,202 +136,30 @@ lightweight-web-seed/
 │   ├── queue/            # Queue workers
 │   └── websocket.ts      # WebSocket server
 ├── cli/                   # CLI client
-│   └── index.ts
-├── drizzle.config.ts     # Drizzle configuration
-├── docker-compose.yml    # Docker services
-└── .env                  # Environment variables
+├── docs/                  # Documentation
+└── scripts/               # Utility scripts
 ```
-
-## API Routes
-
-### tRPC Endpoints
-
-All tRPC endpoints are available at `/api/trpc/[procedure]`:
-
-#### Users
-- `user.list` - Get all users
-- `user.getById` - Get user by ID
-- `user.create` - Create a new user
-- `user.update` - Update a user
-- `user.delete` - Delete a user
-
-#### Posts
-- `post.list` - Get all posts
-- `post.getById` - Get post by ID
-- `post.create` - Create a new post
-- `post.update` - Update a post
-- `post.delete` - Delete a post
-
-### REST Endpoints
-
-- `POST /api/queue/add` - Add a job to the queue
-
-## WebSocket Protocol
-
-The WebSocket server runs on port 3001 (configurable via `WS_PORT`).
-
-### Message Types
-
-#### Subscribe to a channel
-```json
-{
-  "type": "subscribe",
-  "channel": "channel-name"
-}
-```
-
-#### Unsubscribe from a channel
-```json
-{
-  "type": "unsubscribe",
-  "channel": "channel-name"
-}
-```
-
-#### Broadcast a message
-```json
-{
-  "type": "broadcast",
-  "channel": "channel-name",
-  "data": { "any": "data" }
-}
-```
-
-#### Ping/Pong
-```json
-{
-  "type": "ping"
-}
-```
-
-## Task Queue
-
-The task queue uses BullMQ with Redis. Three queues are available:
-
-1. **default** - General purpose queue
-2. **email** - Email sending queue
-3. **processing** - Data processing queue
-
-### Adding Jobs
-
-Via API:
-```javascript
-fetch('/api/queue/add', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    queueName: 'default',
-    jobName: 'my-job',
-    data: { key: 'value' }
-  })
-});
-```
-
-Via code:
-```typescript
-import { QueueManager } from '@/lib/queue';
-
-await QueueManager.addJob('default', 'process-data', {
-  data: 'example'
-});
-```
-
-## Authentication
-
-The application supports two authentication methods:
-
-1. **Email/Password** - Traditional email-based authentication
-2. **LDAP** - Enterprise LDAP authentication
-
-Default credentials:
-- Username: `root`
-- Password: `Must-Changed` (must be changed on first login)
 
 ## Environment Variables
 
+Required environment variables (see `.env.example`):
+
 ```env
-# Database
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mydb
-
-# Redis
 REDIS_URL=redis://localhost:6379
-
-# Server
 PORT=3000
 WS_PORT=3001
-
-# App
 NODE_ENV=development
+JWT_SECRET=your-secret-key
+```
 
-# LDAP (optional)
-LDAP_URL=ldap://your-ldap-server
+Optional LDAP configuration:
+```env
+LDAP_URL=ldap://your-ldap-server:389
 LDAP_BIND_DN=cn=admin,dc=example,dc=com
 LDAP_BIND_PASSWORD=password
 LDAP_SEARCH_BASE=ou=users,dc=example,dc=com
 ```
-
-## Development
-
-### Adding a new tRPC route
-
-1. Create a new router in `server/routers/`:
-```typescript
-import { z } from 'zod';
-import { publicProcedure, router } from '@/lib/trpc/trpc';
-
-export const myRouter = router({
-  myProcedure: publicProcedure
-    .input(z.object({ name: z.string() }))
-    .query(async ({ ctx, input }) => {
-      // Your logic here
-    }),
-});
-```
-
-2. Add it to `server/routers/_app.ts`:
-```typescript
-export const appRouter = router({
-  // ...
-  my: myRouter,
-});
-```
-
-### Adding a database table
-
-1. Add the table to `lib/db/schema.ts`:
-```typescript
-export const myTable = pgTable('my_table', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-});
-```
-
-2. Push the schema:
-```bash
-npm run db:push
-```
-
-## Deployment
-
-### Production Build
-
-```bash
-npm run build
-npm start
-```
-
-### Docker Deployment
-
-```bash
-docker-compose up -d
-```
-
-### Environment Setup
-
-Make sure to set all environment variables for production:
-- Update `DATABASE_URL` with production database
-- Update `REDIS_URL` with production Redis
-- Set `NODE_ENV=production`
 
 ## Contributing
 
