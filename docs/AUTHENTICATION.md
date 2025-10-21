@@ -1,81 +1,98 @@
-# Authentication Guide
+# Authentication
 
 ## Overview
 
-The application supports two authentication methods:
-1. **Email/Password** - Traditional email-based authentication
-2. **LDAP** - Enterprise LDAP authentication
+The application supports two authentication methods for maximum flexibility:
 
-## Default Credentials
+1. **Email/Password** - Traditional username/password authentication with bcrypt hashing
+2. **LDAP** - Enterprise directory authentication with auto-provisioning
 
-- Username: `root`
-- Password: `Must-Changed` (must be changed on first login)
+## Quick Start
 
-## Email/Password Authentication
+### Default Credentials
 
-### Login Flow
-1. User enters email and password
-2. Server validates credentials against database
-3. JWT token is generated and returned
-4. Client stores token for subsequent requests
+```
+Username: root
+Password: Must-Changed
+```
 
-### Password Hashing
-Passwords are hashed using bcrypt before storage.
+**Note:** You will be prompted to change the password on first login.
 
-## LDAP Authentication
+## Authentication Methods
+
+### Email/Password
+
+Local database authentication:
+- Passwords hashed with bcrypt
+- Stored in PostgreSQL users table
+- Supports password change flow
+
+### LDAP
+
+Enterprise directory authentication:
+- Supports OpenLDAP and Active Directory
+- Auto-creates user accounts on first login
+- Syncs user information from LDAP
 
 ### Configuration
 
-Set LDAP environment variables in `.env`:
+Set in `.env`:
 
 ```env
-LDAP_URL=ldap://your-ldap-server:389
-LDAP_BIND_DN=cn=admin,dc=example,dc=com
+# JWT Secret (required)
+JWT_SECRET=your-secret-key-change-in-production
+
+# LDAP (optional)
+LDAP_URL=ldap://ldap.company.com:389
+LDAP_BIND_DN=cn=admin,dc=company,dc=com
 LDAP_BIND_PASSWORD=password
-LDAP_SEARCH_BASE=ou=users,dc=example,dc=com
+LDAP_SEARCH_BASE=ou=users,dc=company,dc=com
+LDAP_USERNAME_ATTRIBUTE=uid  # or sAMAccountName for AD
 ```
 
-### Login Flow
-1. User enters username and password
-2. Application attempts to bind to LDAP server
-3. If successful, user is authenticated
-4. User profile is synced with local database
-5. JWT token is generated and returned
+## Token Management
 
-## JWT Tokens
+### JWT Tokens
 
-### Token Generation
+- Generated on successful login
+- Stored in localStorage
+- Default expiration: 7 days
+- Included in all authenticated requests
+
+### Usage
+
 ```typescript
-import jwt from 'jsonwebtoken';
+// Login returns token
+const { token } = await trpc.auth.login.mutate({
+  username: 'user',
+  password: 'pass',
+  authType: 'email',
+});
 
-const token = jwt.sign(
-  { userId: user.id, email: user.email },
-  process.env.JWT_SECRET!,
-  { expiresIn: '7d' }
-);
+// Store token
+localStorage.setItem('authToken', token);
+
+// Token automatically included in subsequent requests
 ```
-
-### Token Verification
-Tokens are verified in tRPC context middleware.
 
 ## Protected Routes
 
 ### Client-Side Protection
-Use Next.js middleware to protect routes:
+
+Pages check for authentication token:
 
 ```typescript
-// middleware.ts
-export function middleware(request: NextRequest) {
-  const token = request.cookies.get('token');
-
+useEffect(() => {
+  const token = localStorage.getItem('authToken');
   if (!token) {
-    return NextResponse.redirect(new URL('/login', request.url));
+    router.push('/login');
   }
-}
+}, [router]);
 ```
 
 ### Server-Side Protection
-Use tRPC protected procedures:
+
+tRPC procedures use `protectedProcedure`:
 
 ```typescript
 const protectedProcedure = publicProcedure.use(async ({ ctx, next }) => {
@@ -86,10 +103,64 @@ const protectedProcedure = publicProcedure.use(async ({ ctx, next }) => {
 });
 ```
 
-## Environment Variables
+## First Login
 
-```env
-JWT_SECRET=your-secret-key-change-in-production-make-it-long-and-random
+Users with `mustChangePassword: true`:
+1. Log in with initial password
+2. See password change form
+3. Set new password (min 8 characters)
+4. Access application
+
+## Detailed Documentation
+
+For more details, see:
+- [Login Verification](./authentication/login-verification.md) - Complete login flow verification
+- [Authentication Flow](./architecture/auth-flow.md) - Detailed authentication diagrams
+- [LDAP Setup](./authentication/ldap-setup.md) - LDAP configuration guide
+
+## Security Best Practices
+
+### Production Checklist
+
+✅ Change `JWT_SECRET` to a strong random value
+✅ Use HTTPS in production
+✅ Implement rate limiting on login attempts
+✅ Add CSRF protection
+✅ Use LDAPS (secure LDAP) if using LDAP
+✅ Implement session timeout
+✅ Add audit logging for authentication events
+✅ Consider implementing MFA
+
+### Password Requirements
+
+- Minimum 8 characters for password changes
+- Consider adding complexity requirements in production
+
+## API Reference
+
+### Login
+
+```typescript
+trpc.auth.login.mutate({
+  username: string,
+  password: string,
+  authType: 'email' | 'ldap',
+})
 ```
 
-**Important**: Change `JWT_SECRET` in production to a long, random string.
+### Change Password
+
+```typescript
+trpc.auth.changePassword.mutate({
+  token: string,
+  newPassword: string,
+})
+```
+
+### Verify Token
+
+```typescript
+trpc.auth.verifyToken.query({
+  token: string,
+})
+```
