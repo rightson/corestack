@@ -1,201 +1,154 @@
-# Database Guide
+# Database
 
-## Database Management with Drizzle
+## Overview
 
 This project uses [Drizzle ORM](https://orm.drizzle.team/) for type-safe database operations with PostgreSQL.
 
-## Schema
+## Quick Start
 
-The database schema is defined in `lib/db/schema.ts`:
-
-### Users Table
-```typescript
-{
-  id: serial (primary key),
-  name: varchar(255),
-  email: varchar(255) unique,
-  password: varchar(255),
-  createdAt: timestamp
-}
-```
-
-### Posts Table
-```typescript
-{
-  id: serial (primary key),
-  title: varchar(255),
-  content: text,
-  authorId: integer (foreign key -> users.id),
-  createdAt: timestamp
-}
-```
-
-### Projects Table
-```typescript
-{
-  id: serial (primary key),
-  name: varchar(255) (optional),
-  projectVersion: varchar(100),
-  projectCode: varchar(100),
-  description: text,
-  ownerId: integer (foreign key -> users.id),
-  createdAt: timestamp,
-  lastAccessedAt: timestamp
-}
-```
-
-### Permission Requests Table
-```typescript
-{
-  id: serial (primary key),
-  projectId: integer (foreign key -> projects.id),
-  userId: integer (foreign key -> users.id),
-  status: varchar(50) default 'pending',
-  requestedAt: timestamp,
-  resolvedAt: timestamp (optional),
-  resolvedBy: integer (foreign key -> users.id, optional)
-}
-```
-
-## Common Operations
-
-### Pushing Schema Changes
-
-Push schema changes directly to the database (development):
 ```bash
+# Start PostgreSQL
+docker compose up -d
+
+# Push schema to database
 npm run db:push
-```
 
-This command uses `drizzle-kit push` to sync your schema with the database without creating migration files.
-
-### Generating Migrations
-
-Create migration files from schema changes:
-```bash
-npm run db:generate
-```
-
-### Running Migrations
-
-Apply pending migrations:
-```bash
-npm run db:migrate
-```
-
-### Drizzle Studio
-
-Open Drizzle Studio for visual database management:
-```bash
+# Open Drizzle Studio
 npm run db:studio
 ```
 
-## Development Workflow
+## Schema Overview
 
-### Adding a New Table
+### Core Tables
 
-1. Define the table in `lib/db/schema.ts`:
-```typescript
-export const myTable = pgTable('my_table', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 255 }).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-});
-```
+- **users** - User accounts (email/LDAP)
+- **posts** - User-generated content
+- **projects** - Project management
+- **project_members** - Project access control
+- **permission_requests** - Access request workflow
+- **tasks** - Background job tracking
 
-2. Push the schema to database:
+## Common Operations
+
+### Development Workflow
+
 ```bash
+# Push schema changes (development)
 npm run db:push
-```
 
-### Adding a New Column
-
-1. Update the table in `lib/db/schema.ts`:
-```typescript
-export const users = pgTable('users', {
-  // existing columns...
-  phoneNumber: varchar('phone_number', { length: 20 }),
-});
-```
-
-2. Push the changes:
-```bash
-npm run db:push
-```
-
-## Production Workflow
-
-For production deployments, use migrations instead of `db:push`:
-
-1. **Generate migrations**:
-```bash
+# Generate migrations (production)
 npm run db:generate
-```
 
-2. **Review migration files** in `drizzle/` directory
-
-3. **Apply migrations**:
-```bash
+# Apply migrations
 npm run db:migrate
+
+# Visual database browser
+npm run db:studio
 ```
 
-## Querying the Database
-
-### Using Drizzle Client
+### Basic Queries
 
 ```typescript
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
-// Select all users
+// Select all
 const allUsers = await db.select().from(users);
 
-// Find user by email
+// Find by ID
 const user = await db
   .select()
   .from(users)
-  .where(eq(users.email, 'user@example.com'))
+  .where(eq(users.id, userId))
   .limit(1);
 
-// Insert a user
+// Insert
 const newUser = await db
   .insert(users)
-  .values({
-    name: 'John Doe',
-    email: 'john@example.com',
-  })
+  .values({ name: 'John', email: 'john@example.com' })
   .returning();
 
-// Update a user
+// Update
 await db
   .update(users)
-  .set({ name: 'Jane Doe' })
+  .set({ name: 'Jane' })
   .where(eq(users.id, userId));
 
-// Delete a user
-await db
-  .delete(users)
-  .where(eq(users.id, userId));
+// Delete
+await db.delete(users).where(eq(users.id, userId));
 ```
 
-## Environment Configuration
+## Configuration
 
-Set your database connection in `.env`:
+Set in `.env`:
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mydb
 ```
 
-## Docker Setup
+## Detailed Documentation
 
-The project includes a `docker-compose.yml` with PostgreSQL:
+For more details, see:
+- [Schema Reference](./database/schema.md) - Complete schema documentation
+- [Migrations Guide](./database/migrations.md) - Managing schema changes
+- [Queries Guide](./database/queries.md) - Query examples and patterns
+- [Drizzle Studio](./database/drizzle-studio.md) - Visual database management
+
+## Development vs Production
+
+### Development
+
+Use `db:push` for rapid iteration:
 
 ```bash
-# Start PostgreSQL
-docker-compose up -d
+npm run db:push
+```
 
-# Stop PostgreSQL
-docker-compose down
+Directly syncs schema to database without migration files.
+
+### Production
+
+Use migrations for controlled deployments:
+
+```bash
+# 1. Generate migration
+npm run db:generate
+
+# 2. Review migration file
+
+# 3. Apply migration
+npm run db:migrate
+```
+
+## Docker Setup
+
+PostgreSQL runs in Docker:
+
+```bash
+# Start
+docker compose up -d
+
+# Stop
+docker compose down
 
 # View logs
-docker-compose logs -f postgres
+docker compose logs -f postgres
+```
+
+## Type Safety
+
+Drizzle provides full TypeScript support:
+
+```typescript
+// Schema defines types
+export const users = pgTable('users', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+});
+
+// Queries are type-safe
+const users = await db.select().from(users);
+// users: { id: number; name: string; email: string }[]
 ```
