@@ -74,15 +74,31 @@ npm run queue:worker
 
 Comprehensive documentation is available in the `docs/` directory:
 
-- **[Architecture](docs/ARCHITECTURE.md)** - System architecture and project structure
+### Core Guides
+
+- **[Architecture](docs/ARCHITECTURE.md)** - System architecture and tech stack overview
 - **[API Reference](docs/API.md)** - tRPC endpoints and WebSocket protocol
-- **[Database Guide](docs/DATABASE.md)** - Schema, migrations, and Drizzle ORM usage
+- **[Database Guide](docs/DATABASE.md)** - Schema overview and Drizzle ORM basics
 - **[Authentication](docs/AUTHENTICATION.md)** - Email/password and LDAP authentication
-- **[WebSocket Guide](docs/WEBSOCKET.md)** - Real-time communication setup and usage
-- **[Task Queue Guide](docs/TASK_QUEUE.md)** - Background job processing with BullMQ
-- **[CLI Guide](docs/CLI.md)** - Command-line interface usage
 - **[Development Guide](docs/DEVELOPMENT.md)** - Development workflow and adding features
 - **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment and scaling
+- **[WebSocket Guide](docs/WEBSOCKET.md)** - Real-time communication setup
+- **[Task Queue Guide](docs/TASK_QUEUE.md)** - Background job processing
+- **[CLI Guide](docs/CLI.md)** - Command-line interface usage
+
+### Detailed Documentation
+
+Each topic has detailed documentation in subfolders:
+
+- **[docs/architecture/](docs/architecture/)** - Request flows, WebSocket protocol, job processing
+- **[docs/authentication/](docs/authentication/)** - Login verification, LDAP setup guides
+- **[docs/database/](docs/database/)** - Complete schema reference, migration guides
+- **[docs/api/](docs/api/)** - Detailed API endpoint documentation
+- **[docs/development/](docs/development/)** - Development guides and best practices
+- **[docs/deployment/](docs/deployment/)** - Deployment configurations
+- **[docs/websocket/](docs/websocket/)** - WebSocket implementation details
+- **[docs/task-queue/](docs/task-queue/)** - Queue management and workers
+- **[docs/cli/](docs/cli/)** - CLI command references
 
 ## Common Commands
 
