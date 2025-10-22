@@ -225,18 +225,68 @@ INSERT INTO project_ssh_configs VALUES
   (4, 2, 4, 'production', '/var/www/project2', NOW(), true);
 ```
 
-**Usage Pattern:**
+**Query Patterns for Account Resolution:**
+
 ```typescript
-// Get SSH config for project
-const configs = await db
+// 1. Get account by direct account name
+const [account] = await db
   .select()
+  .from(sshAccounts)
+  .where(and(
+    eq(sshAccounts.accountName, 'prod-web-01'),
+    eq(sshAccounts.isActive, true)
+  ))
+  .limit(1);
+
+// 2. Get account by project + config alias (RECOMMENDED)
+const [config] = await db
+  .select({
+    account: sshAccounts,
+    config: projectSshConfigs,
+  })
   .from(projectSshConfigs)
   .innerJoin(sshAccounts, eq(projectSshConfigs.sshAccountId, sshAccounts.id))
   .where(and(
     eq(projectSshConfigs.projectId, 1),
-    eq(projectSshConfigs.configAlias, 'production')
-  ));
+    eq(projectSshConfigs.configAlias, 'production'),
+    eq(sshAccounts.isActive, true)
+  ))
+  .limit(1);
+
+// 3. Get default account for project
+const [defaultConfig] = await db
+  .select({
+    account: sshAccounts,
+    config: projectSshConfigs,
+  })
+  .from(projectSshConfigs)
+  .innerJoin(sshAccounts, eq(projectSshConfigs.sshAccountId, sshAccounts.id))
+  .where(and(
+    eq(projectSshConfigs.projectId, 1),
+    eq(projectSshConfigs.isDefault, true),
+    eq(sshAccounts.isActive, true)
+  ))
+  .limit(1);
+
+// 4. List all SSH configs for a project
+const configs = await db
+  .select({
+    account: sshAccounts,
+    config: projectSshConfigs,
+  })
+  .from(projectSshConfigs)
+  .innerJoin(sshAccounts, eq(projectSshConfigs.sshAccountId, sshAccounts.id))
+  .where(and(
+    eq(projectSshConfigs.projectId, 1),
+    eq(sshAccounts.isActive, true)
+  ))
+  .orderBy(desc(projectSshConfigs.isDefault));  // Default first
 ```
+
+**Important Indexes for Performance:**
+- Index on `(project_id, config_alias)` for quick alias resolution
+- Index on `(project_id, is_default)` for default account lookup
+- Index on `account_name` for direct name resolution
 
 ### 3. ssh_operation_logs
 

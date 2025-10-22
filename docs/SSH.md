@@ -126,77 +126,131 @@ For developers new to this feature, we recommend reading the documentation in th
    - Simple function calls: `trpc.ssh.copy(...)`
    - No SSH complexity exposed to developers
 
-2. **Type Safety**
+2. **Flexible Account Resolution**
+
+   - **Project + Config Alias**: `projectId: 1, configAlias: 'production'` (RECOMMENDED)
+   - **Project Default**: `projectId: 1` (uses isDefault account)
+   - **Direct Account Name**: `accountName: 'prod-web-01'` (legacy/admin)
+   - Automatic resolution - no need to know specific SSH credentials
+
+3. **Type Safety**
 
    - Full TypeScript support
    - Zod validation for all inputs
    - End-to-end type safety via tRPC
 
-3. **Connection Pooling**
+4. **Connection Pooling**
 
    - Automatic connection reuse
    - Efficient resource management
    - Idle connection cleanup
 
-4. **Error Handling**
+5. **Error Handling**
 
    - Automatic retry with exponential backoff
    - Email notifications on failure
    - Custom error handlers supported
 
-5. **Security**
+6. **Security**
 
    - AES-256 encrypted credentials
    - Input validation and sanitization
    - Comprehensive audit logging
 
-6. **Multi-tenancy**
+7. **Multi-tenancy**
    - Multiple SSH accounts per project
-   - Project-specific configurations
+   - Environment-based configurations (staging, production, etc.)
+   - Project-specific path overrides
    - Globally unique account names
 
 ## Example Usage
 
-### Basic File Operations
+### Recommended: Project-Based Operations
 
 ```typescript
+// Operations using project context (RECOMMENDED)
+// Automatically resolves to the correct SSH account based on project + environment
+
 // Create directory
 await trpc.ssh.mkdir.mutate({
-  accountName: "prod-web-01",
+  projectId: 1,
+  configAlias: "production",
   path: "/var/www/app/releases/v1.0.0",
   recursive: true,
 });
 
 // Copy file
 await trpc.ssh.copy.mutate({
-  accountName: "prod-web-01",
+  projectId: 1,
+  configAlias: "production",
   source: "/tmp/app.js",
   dest: "/var/www/app/releases/v1.0.0/app.js",
 });
 
 // Create symlink
 await trpc.ssh.symlink.mutate({
-  accountName: "prod-web-01",
+  projectId: 1,
+  configAlias: "production",
   target: "/var/www/app/releases/v1.0.0",
   linkPath: "/var/www/app/current",
 });
 
 // Read file
 const result = await trpc.ssh.readFile.useQuery({
-  accountName: "prod-web-01",
+  projectId: 1,
+  configAlias: "production",
   path: "/var/www/app/config.json",
 });
 ```
 
-### OO-Style Wrapper
+### Using Default Project Account
 
 ```typescript
-class RemoteConnection {
-  constructor(private accountName: string, private trpc: any) {}
+// When project has a default SSH account configured (isDefault=true)
+await trpc.ssh.copy.mutate({
+  projectId: 1,  // No configAlias needed - uses default
+  source: "/tmp/file.txt",
+  dest: "/var/www/app/file.txt",
+});
+```
+
+### Multi-Environment Deployment
+
+```typescript
+// Deploy to multiple environments easily
+async function deploy(projectId: number, version: string) {
+  for (const env of ['staging', 'production']) {
+    await trpc.ssh.mkdir.mutate({
+      projectId,
+      configAlias: env,  // Switches between environments
+      path: `/var/www/app/releases/${version}`,
+      recursive: true,
+    });
+
+    await trpc.ssh.copy.mutate({
+      projectId,
+      configAlias: env,
+      source: '/tmp/bundle.js',
+      dest: `/var/www/app/releases/${version}/bundle.js`,
+    });
+  }
+}
+```
+
+### OO-Style Project Wrapper
+
+```typescript
+class ProjectSSH {
+  constructor(
+    private projectId: number,
+    private configAlias: string,
+    private trpc: any
+  ) {}
 
   async mkdir(path: string) {
     return this.trpc.ssh.mkdir.mutate({
-      accountName: this.accountName,
+      projectId: this.projectId,
+      configAlias: this.configAlias,
       path,
       recursive: true,
     });
@@ -204,7 +258,8 @@ class RemoteConnection {
 
   async copy(source: string, dest: string) {
     return this.trpc.ssh.copy.mutate({
-      accountName: this.accountName,
+      projectId: this.projectId,
+      configAlias: this.configAlias,
       source,
       dest,
     });
@@ -212,9 +267,23 @@ class RemoteConnection {
 }
 
 // Usage
-const remote = new RemoteConnection("prod-web-01", trpc);
-await remote.mkdir("/var/www/app");
-await remote.copy("/tmp/file.txt", "/var/www/app/file.txt");
+const prod = new ProjectSSH(1, "production", trpc);
+await prod.mkdir("/var/www/app");
+await prod.copy("/tmp/file.txt", "/var/www/app/file.txt");
+
+const staging = new ProjectSSH(1, "staging", trpc);
+await staging.copy("/tmp/file.txt", "/var/www/app/file.txt");
+```
+
+### Legacy: Direct Account Name
+
+```typescript
+// Still supported for admin operations or cross-project scripts
+await trpc.ssh.copy.mutate({
+  accountName: "prod-web-01",  // Direct account reference
+  source: "/tmp/file.txt",
+  dest: "/var/www/app/file.txt",
+});
 ```
 
 ## Architecture at a Glance

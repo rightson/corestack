@@ -177,7 +177,7 @@ This document describes the architecture for remote SSH command execution functi
 ```
 Component
     │
-    │ trpc.ssh.copy({ accountName: "prod", source: "/a", dest: "/b" })
+    │ trpc.ssh.copy({ projectId: 1, configAlias: "production", source: "/a", dest: "/b" })
     ▼
 tRPC Client
     │
@@ -185,10 +185,16 @@ tRPC Client
     ▼
 SSH Router (server/routers/ssh.ts)
     │
-    │ 1. Get SSH account from DB by accountName
-    │ 2. Decrypt credentials using AESCrypto
-    │ 3. Get error notification config
-    │ 4. Execute with retry wrapper
+    │ 1. Resolve SSH account using resolveSSHAccount()
+    │    - Check if accountName provided → use directly
+    │    - Check if projectId + configAlias → query project_ssh_configs
+    │    - Check if projectId only → query for isDefault=true
+    │    - Throw error if no resolution method provided
+    │
+    │ 2. Get SSH account from DB by resolved accountId/accountName
+    │ 3. Decrypt credentials using AESCrypto
+    │ 4. Get error notification config
+    │ 5. Execute with retry wrapper
     ▼
 executeWithRetry()
     │
@@ -309,7 +315,111 @@ Pool.cleanup()
 - Many-to-many relationship: Projects ↔ SSH Accounts
 - Config aliases for easy reference (e.g., "production", "staging")
 - Project-specific base path overrides
-- Default configuration per project
+- Default configuration per project (`isDefault=true`)
+- **Flexible account resolution** supporting three methods:
+  1. Direct account name lookup
+  2. Project + config alias resolution
+  3. Project default account resolution
+
+### 2.1 Account Resolution Logic
+
+The `resolveSSHAccount()` helper provides intelligent account selection:
+
+```typescript
+async function resolveSSHAccount(input: {
+  accountName?: string;
+  projectId?: number;
+  configAlias?: string;
+}): Promise<SSHAccount> {
+  // Priority 1: Direct account name (backwards compatible)
+  if (input.accountName) {
+    const account = await db
+      .select()
+      .from(sshAccounts)
+      .where(and(
+        eq(sshAccounts.accountName, input.accountName),
+        eq(sshAccounts.isActive, true)
+      ))
+      .limit(1);
+
+    if (!account[0]) {
+      throw new Error(`SSH account '${input.accountName}' not found`);
+    }
+
+    return decryptAccount(account[0]);
+  }
+
+  // Priority 2: Project + config alias
+  if (input.projectId && input.configAlias) {
+    const config = await db
+      .select({
+        account: sshAccounts,
+        config: projectSshConfigs,
+      })
+      .from(projectSshConfigs)
+      .innerJoin(sshAccounts, eq(projectSshConfigs.sshAccountId, sshAccounts.id))
+      .where(and(
+        eq(projectSshConfigs.projectId, input.projectId),
+        eq(projectSshConfigs.configAlias, input.configAlias),
+        eq(sshAccounts.isActive, true)
+      ))
+      .limit(1);
+
+    if (!config[0]) {
+      throw new Error(
+        `No SSH config found for project ${input.projectId} with alias '${input.configAlias}'`
+      );
+    }
+
+    return decryptAccount(config[0].account);
+  }
+
+  // Priority 3: Project default account
+  if (input.projectId) {
+    const config = await db
+      .select({
+        account: sshAccounts,
+        config: projectSshConfigs,
+      })
+      .from(projectSshConfigs)
+      .innerJoin(sshAccounts, eq(projectSshConfigs.sshAccountId, sshAccounts.id))
+      .where(and(
+        eq(projectSshConfigs.projectId, input.projectId),
+        eq(projectSshConfigs.isDefault, true),
+        eq(sshAccounts.isActive, true)
+      ))
+      .limit(1);
+
+    if (!config[0]) {
+      throw new Error(
+        `No default SSH account configured for project ${input.projectId}`
+      );
+    }
+
+    return decryptAccount(config[0].account);
+  }
+
+  throw new Error(
+    'Must provide either accountName, or projectId with optional configAlias'
+  );
+}
+```
+
+**Resolution Examples:**
+
+```typescript
+// Method 1: Direct account name
+const account = await resolveSSHAccount({ accountName: 'prod-web-01' });
+
+// Method 2: Project + config alias
+const account = await resolveSSHAccount({
+  projectId: 1,
+  configAlias: 'production'
+});
+
+// Method 3: Project default
+const account = await resolveSSHAccount({ projectId: 1 });
+```
 
 ### 3. Connection Pooling
 - Singleton pool manager

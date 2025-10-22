@@ -399,7 +399,41 @@ await trpc.sshConfig.setErrorNotification.mutate({
 
 ## SSH Operations Router
 
-All operations accept `accountName` (globally unique) and optional `projectId` for logging.
+All operations support **flexible account resolution** using one of three methods:
+
+1. **Direct Account Name**: Specify `accountName` (globally unique)
+2. **Project + Config Alias**: Specify `projectId` + `configAlias` (e.g., 'production', 'staging')
+3. **Project Default**: Specify only `projectId` (uses `isDefault=true` account)
+
+### Account Resolution Input Pattern
+
+All SSH operations accept this standard input pattern:
+
+```typescript
+{
+  // Method 1: Direct account name (backwards compatible)
+  accountName?: string;
+
+  // Method 2 & 3: Project-based resolution
+  projectId?: number;
+  configAlias?: string;          // Optional: resolves to specific alias, or default if omitted
+
+  // ... operation-specific parameters
+}
+```
+
+**Resolution Priority:**
+1. If `accountName` is provided → use that account directly
+2. If `projectId` + `configAlias` → resolve account from project config
+3. If `projectId` only → use default account (`isDefault=true`)
+4. Otherwise → throw error
+
+**Validation:**
+- At minimum, either `accountName` OR `projectId` must be provided
+- `configAlias` requires `projectId`
+- If project has no default account and `configAlias` is omitted, operation fails
+
+---
 
 ### copy
 
@@ -410,8 +444,12 @@ Copy a file or directory.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution (choose one method)
+  accountName?: string;
   projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   source: string;               // Source path
   dest: string;                 // Destination path
 }
@@ -429,10 +467,26 @@ Copy a file or directory.
 ```
 
 **Example Usage:**
+
 ```typescript
+// Method 1: Direct account name
 const result = await trpc.ssh.copy.mutate({
   accountName: 'prod-web-01',
+  source: '/tmp/build/app.js',
+  dest: '/var/www/app/app.js',
+});
+
+// Method 2: Project + config alias (RECOMMENDED)
+const result = await trpc.ssh.copy.mutate({
   projectId: 1,
+  configAlias: 'production',
+  source: '/tmp/build/app.js',
+  dest: '/var/www/app/app.js',
+});
+
+// Method 3: Project default account
+const result = await trpc.ssh.copy.mutate({
+  projectId: 1,  // Uses isDefault=true account
   source: '/tmp/build/app.js',
   dest: '/var/www/app/app.js',
 });
@@ -454,8 +508,12 @@ Move or rename a file/directory.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
   projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   source: string;
   dest: string;
 }
@@ -463,8 +521,10 @@ Move or rename a file/directory.
 
 **Example Usage:**
 ```typescript
+// Using project + config alias
 await trpc.ssh.move.mutate({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   source: '/var/www/app/old.log',
   dest: '/var/www/app/archive/old.log',
 });
@@ -486,8 +546,12 @@ Remove a file or directory.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
   projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   path: string;
   recursive?: boolean;          // Default: false
 }
@@ -496,7 +560,8 @@ Remove a file or directory.
 **Example Usage:**
 ```typescript
 await trpc.ssh.remove.mutate({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   path: '/tmp/old-files',
   recursive: true,
 });
@@ -519,8 +584,12 @@ Create a directory.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
   projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   path: string;
   recursive?: boolean;          // Default: true
 }
@@ -529,7 +598,8 @@ Create a directory.
 **Example Usage:**
 ```typescript
 await trpc.ssh.mkdir.mutate({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   path: '/var/www/app/releases/2024-01',
   recursive: true,
 });
@@ -552,8 +622,12 @@ Create a symbolic link.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
   projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   target: string;               // Link target
   linkPath: string;             // Link location
 }
@@ -562,7 +636,8 @@ Create a symbolic link.
 **Example Usage:**
 ```typescript
 await trpc.ssh.symlink.mutate({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   target: '/var/www/app/releases/2024-01',
   linkPath: '/var/www/app/current',
 });
@@ -584,8 +659,12 @@ Create a hard link.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
   projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   target: string;
   linkPath: string;
 }
@@ -594,7 +673,8 @@ Create a hard link.
 **Example Usage:**
 ```typescript
 await trpc.ssh.hardlink.mutate({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   target: '/var/www/app/file.txt',
   linkPath: '/var/www/app/file-link.txt',
 });
@@ -616,8 +696,12 @@ Create or update file timestamp.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
   projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   path: string;
 }
 ```
@@ -625,7 +709,8 @@ Create or update file timestamp.
 **Example Usage:**
 ```typescript
 await trpc.ssh.touch.mutate({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   path: '/var/www/app/.deployed',
 });
 ```
@@ -646,8 +731,12 @@ Change file permissions.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
   projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   path: string;
   mode: string;                 // e.g., '755', '644'
 }
@@ -656,7 +745,8 @@ Change file permissions.
 **Example Usage:**
 ```typescript
 await trpc.ssh.chmod.mutate({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   path: '/var/www/app/scripts/deploy.sh',
   mode: '755',
 });
@@ -678,8 +768,12 @@ Change file ownership.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
   projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   path: string;
   owner: string;
   group?: string;
@@ -689,7 +783,8 @@ Change file ownership.
 **Example Usage:**
 ```typescript
 await trpc.ssh.chown.mutate({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   path: '/var/www/app',
   owner: 'www-data',
   group: 'www-data',
@@ -713,7 +808,12 @@ Read file contents.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
+  projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   path: string;
 }
 ```
@@ -732,7 +832,8 @@ Read file contents.
 **Example Usage:**
 ```typescript
 const result = await trpc.ssh.readFile.useQuery({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   path: '/var/www/app/config.json',
 });
 
@@ -757,8 +858,12 @@ Write content to a file.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
   projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   path: string;
   content: string;
 }
@@ -767,7 +872,8 @@ Write content to a file.
 **Example Usage:**
 ```typescript
 await trpc.ssh.writeFile.mutate({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   path: '/var/www/app/.env',
   content: 'DATABASE_URL=postgres://...\nAPI_KEY=...',
 });
@@ -792,8 +898,12 @@ Append content to a file.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
   projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   path: string;
   content: string;
 }
@@ -802,7 +912,8 @@ Append content to a file.
 **Example Usage:**
 ```typescript
 await trpc.ssh.appendFile.mutate({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   path: '/var/log/app/deploy.log',
   content: `[${new Date().toISOString()}] Deployment completed\n`,
 });
@@ -826,7 +937,12 @@ Check if file or directory exists.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
+  projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   path: string;
 }
 ```
@@ -839,7 +955,8 @@ boolean
 **Example Usage:**
 ```typescript
 const exists = await trpc.ssh.exists.useQuery({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   path: '/var/www/app/config.json',
 });
 
@@ -864,7 +981,12 @@ List directory contents.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
+  projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   path: string;
 }
 ```
@@ -882,7 +1004,8 @@ List directory contents.
 **Example Usage:**
 ```typescript
 const result = await trpc.ssh.listDir.useQuery({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   path: '/var/www/app/releases',
 });
 
@@ -910,7 +1033,12 @@ Get file/directory information.
 **Input:**
 ```typescript
 {
-  accountName: string;
+  // Account Resolution
+  accountName?: string;
+  projectId?: number;
+  configAlias?: string;
+
+  // Operation Parameters
   path: string;
 }
 ```
@@ -928,7 +1056,8 @@ Get file/directory information.
 **Example Usage:**
 ```typescript
 const result = await trpc.ssh.stat.useQuery({
-  accountName: 'prod-web-01',
+  projectId: 1,
+  configAlias: 'production',
   path: '/var/www/app/current',
 });
 
@@ -1008,41 +1137,81 @@ Timestamp: 2024-01-15T10:30:00.000Z
 
 ## Usage Patterns
 
-### Pattern 1: Direct Function Calls
+### Pattern 1: Project-based Operations (RECOMMENDED)
 
 ```typescript
-// In a React component
+// In a React component - using project context
 const copyFile = trpc.ssh.copy.useMutation();
 const createDir = trpc.ssh.mkdir.useMutation();
 
-const handleDeploy = async () => {
+const handleDeploy = async (projectId: number) => {
+  // All operations use the project's 'production' config
   await createDir.mutateAsync({
-    accountName: 'prod-web-01',
+    projectId,
+    configAlias: 'production',
     path: '/var/www/app/releases/v1.0.0',
     recursive: true,
   });
 
   await copyFile.mutateAsync({
-    accountName: 'prod-web-01',
+    projectId,
+    configAlias: 'production',
     source: '/tmp/bundle.js',
     dest: '/var/www/app/releases/v1.0.0/bundle.js',
   });
 };
 ```
 
-### Pattern 2: OO-style Wrapper
+### Pattern 2: Multi-Environment Deployment
 
 ```typescript
-// Client-side helper class
-class RemoteConnection {
+// Deploy to multiple environments using config aliases
+async function deployToEnvironments(projectId: number, version: string) {
+  const environments = ['staging', 'production'];
+
+  for (const env of environments) {
+    // Create release directory
+    await trpc.ssh.mkdir.mutate({
+      projectId,
+      configAlias: env,
+      path: `/var/www/app/releases/${version}`,
+      recursive: true,
+    });
+
+    // Copy files
+    await trpc.ssh.copy.mutate({
+      projectId,
+      configAlias: env,
+      source: '/tmp/bundle.js',
+      dest: `/var/www/app/releases/${version}/bundle.js`,
+    });
+
+    // Update symlink
+    await trpc.ssh.symlink.mutate({
+      projectId,
+      configAlias: env,
+      target: `/var/www/app/releases/${version}`,
+      linkPath: '/var/www/app/current',
+    });
+  }
+}
+```
+
+### Pattern 3: OO-style Project Wrapper
+
+```typescript
+// Project-aware helper class
+class ProjectSSH {
   constructor(
-    private accountName: string,
+    private projectId: number,
+    private configAlias: string,
     private trpc: any
   ) {}
 
   async copy(source: string, dest: string) {
     return this.trpc.ssh.copy.mutate({
-      accountName: this.accountName,
+      projectId: this.projectId,
+      configAlias: this.configAlias,
       source,
       dest,
     });
@@ -1050,20 +1219,63 @@ class RemoteConnection {
 
   async mkdir(path: string, recursive = true) {
     return this.trpc.ssh.mkdir.mutate({
-      accountName: this.accountName,
+      projectId: this.projectId,
+      configAlias: this.configAlias,
       path,
       recursive,
+    });
+  }
+
+  async deploy(version: string) {
+    const releasePath = `/var/www/app/releases/${version}`;
+    await this.mkdir(releasePath);
+    await this.copy('/tmp/bundle.js', `${releasePath}/bundle.js`);
+    await this.trpc.ssh.symlink.mutate({
+      projectId: this.projectId,
+      configAlias: this.configAlias,
+      target: releasePath,
+      linkPath: '/var/www/app/current',
     });
   }
 }
 
 // Usage
-const remote = new RemoteConnection('prod-web-01', trpc);
-await remote.mkdir('/var/www/app');
-await remote.copy('/tmp/file.txt', '/var/www/app/file.txt');
+const prodSSH = new ProjectSSH(1, 'production', trpc);
+await prodSSH.deploy('v1.0.0');
+
+const stagingSSH = new ProjectSSH(1, 'staging', trpc);
+await stagingSSH.deploy('v1.0.0');
 ```
 
-### Pattern 3: Server-side Orchestration
+### Pattern 4: Using Default Project Account
+
+```typescript
+// When project has isDefault=true account configured
+async function quickDeploy(projectId: number) {
+  // No configAlias needed - uses default account
+  await trpc.ssh.copy.mutate({
+    projectId,  // Automatically resolves to isDefault account
+    source: '/tmp/file.txt',
+    dest: '/var/www/app/file.txt',
+  });
+}
+```
+
+### Pattern 5: Direct Account Name (Legacy/Admin)
+
+```typescript
+// Still supported for admin operations or scripts
+// that need to operate across projects
+async function adminOperation() {
+  await trpc.ssh.copy.mutate({
+    accountName: 'prod-web-01',  // Direct account reference
+    source: '/tmp/file.txt',
+    dest: '/var/www/app/file.txt',
+  });
+}
+```
+
+### Pattern 6: Server-side Orchestration
 
 ```typescript
 // app/api/deploy/route.ts
@@ -1071,24 +1283,28 @@ import { sshRouter } from '@/server/routers/ssh';
 import { db } from '@/lib/db';
 
 export async function POST(request: Request) {
+  const { projectId, environment, version } = await request.json();
   const caller = sshRouter.createCaller({ db });
 
-  // Complex deployment workflow
+  // Complex deployment workflow using project context
   await caller.mkdir({
-    accountName: 'prod-web-01',
-    path: '/var/www/app/releases/v1.0.0',
+    projectId,
+    configAlias: environment,
+    path: `/var/www/app/releases/${version}`,
     recursive: true,
   });
 
   await caller.copy({
-    accountName: 'prod-web-01',
+    projectId,
+    configAlias: environment,
     source: '/tmp/bundle.js',
-    dest: '/var/www/app/releases/v1.0.0/bundle.js',
+    dest: `/var/www/app/releases/${version}/bundle.js`,
   });
 
   await caller.symlink({
-    accountName: 'prod-web-01',
-    target: '/var/www/app/releases/v1.0.0',
+    projectId,
+    configAlias: environment,
+    target: `/var/www/app/releases/${version}`,
     linkPath: '/var/www/app/current',
   });
 

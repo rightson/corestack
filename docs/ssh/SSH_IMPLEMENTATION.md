@@ -457,23 +457,213 @@ Implement all configuration endpoints. See full implementation in API design doc
 
 ---
 
-### 3.2 SSH Operations Router
+### 3.2 Account Resolution Helper
+
+**File:** `server/lib/ssh-resolver.ts`
+
+Implement the core account resolution logic that supports multiple resolution methods.
+
+```typescript
+import { db } from '@/lib/db';
+import { sshAccounts, projectSshConfigs } from '@/lib/db/schema';
+import { eq, and } from 'drizzle-orm';
+import { AESCrypto } from '@/lib/crypto/aes';
+import type { SSHAccount } from '@/lib/ssh/types';
+
+interface ResolveInput {
+  accountName?: string;
+  projectId?: number;
+  configAlias?: string;
+}
+
+/**
+ * Resolve SSH account from multiple input methods
+ * Priority: accountName > projectId+configAlias > projectId (default)
+ */
+export async function resolveSSHAccount(input: ResolveInput): Promise<SSHAccount> {
+  // Method 1: Direct account name lookup
+  if (input.accountName) {
+    const [account] = await db
+      .select()
+      .from(sshAccounts)
+      .where(and(
+        eq(sshAccounts.accountName, input.accountName),
+        eq(sshAccounts.isActive, true)
+      ))
+      .limit(1);
+
+    if (!account) {
+      throw new Error(`SSH account '${input.accountName}' not found or inactive`);
+    }
+
+    return decryptSSHAccount(account);
+  }
+
+  // Method 2: Project + config alias resolution
+  if (input.projectId && input.configAlias) {
+    const [result] = await db
+      .select({
+        account: sshAccounts,
+        config: projectSshConfigs,
+      })
+      .from(projectSshConfigs)
+      .innerJoin(sshAccounts, eq(projectSshConfigs.sshAccountId, sshAccounts.id))
+      .where(and(
+        eq(projectSshConfigs.projectId, input.projectId),
+        eq(projectSshConfigs.configAlias, input.configAlias),
+        eq(sshAccounts.isActive, true)
+      ))
+      .limit(1);
+
+    if (!result) {
+      throw new Error(
+        `No SSH config found for project ${input.projectId} with alias '${input.configAlias}'`
+      );
+    }
+
+    return decryptSSHAccount(result.account);
+  }
+
+  // Method 3: Project default account
+  if (input.projectId) {
+    const [result] = await db
+      .select({
+        account: sshAccounts,
+        config: projectSshConfigs,
+      })
+      .from(projectSshConfigs)
+      .innerJoin(sshAccounts, eq(projectSshConfigs.sshAccountId, sshAccounts.id))
+      .where(and(
+        eq(projectSshConfigs.projectId, input.projectId),
+        eq(projectSshConfigs.isDefault, true),
+        eq(sshAccounts.isActive, true)
+      ))
+      .limit(1);
+
+    if (!result) {
+      throw new Error(
+        `No default SSH account configured for project ${input.projectId}`
+      );
+    }
+
+    return decryptSSHAccount(result.account);
+  }
+
+  // No valid resolution method provided
+  throw new Error(
+    'Must provide either accountName, or projectId with optional configAlias'
+  );
+}
+
+/**
+ * Decrypt SSH account credentials
+ */
+function decryptSSHAccount(account: any): SSHAccount {
+  return {
+    id: account.id,
+    accountName: account.accountName,
+    host: account.host,
+    port: account.port || 22,
+    username: account.username,
+    password: account.encryptedPassword
+      ? AESCrypto.decrypt(account.encryptedPassword)
+      : undefined,
+    privateKey: account.encryptedPrivateKey
+      ? AESCrypto.decrypt(account.encryptedPrivateKey)
+      : undefined,
+    passphrase: account.encryptedPassphrase
+      ? AESCrypto.decrypt(account.encryptedPassphrase)
+      : undefined,
+    basePath: account.basePath,
+    timeout: account.timeout || 30000,
+  };
+}
+```
+
+**Checklist:**
+- [ ] Create `server/lib/ssh-resolver.ts`
+- [ ] Implement `resolveSSHAccount()` with three resolution methods
+- [ ] Implement `decryptSSHAccount()` helper
+- [ ] Add comprehensive error messages
+- [ ] Test all three resolution paths
+- [ ] Add TypeScript types
+
+---
+
+### 3.3 SSH Operations Router
 
 **File:** `server/routers/ssh.ts`
 
-Implement all SSH operation endpoints with retry logic.
+Implement all SSH operation endpoints using the new account resolution.
+
+**Updated Zod Schema:**
+```typescript
+import { z } from 'zod';
+
+// Base schema for account resolution (used in all operations)
+const accountResolutionSchema = z.object({
+  // Method 1: Direct account name
+  accountName: z.string().optional(),
+
+  // Method 2 & 3: Project-based resolution
+  projectId: z.number().int().positive().optional(),
+  configAlias: z.string().optional(),
+}).refine(
+  (data) => data.accountName || data.projectId,
+  {
+    message: 'Either accountName or projectId must be provided',
+  }
+);
+
+// Example: Copy operation schema
+const copySchema = accountResolutionSchema.extend({
+  source: z.string().min(1),
+  dest: z.string().min(1),
+});
+```
+
+**Updated Router Implementation:**
+```typescript
+import { router, protectedProcedure } from '@/lib/trpc/trpc';
+import { resolveSSHAccount } from '@/server/lib/ssh-resolver';
+import { SSHFileOperations } from '@/lib/ssh/operations';
+
+export const sshRouter = router({
+  copy: protectedProcedure
+    .input(copySchema)
+    .mutation(async ({ input }) => {
+      // Resolve SSH account using new helper
+      const account = await resolveSSHAccount({
+        accountName: input.accountName,
+        projectId: input.projectId,
+        configAlias: input.configAlias,
+      });
+
+      // Execute operation
+      const operations = new SSHFileOperations();
+      return await executeWithRetry(
+        () => operations.copy(input.source, input.dest, account),
+        account,
+        'copy',
+        input
+      );
+    }),
+
+  // ... other operations follow same pattern
+});
+```
 
 **Key Features:**
-- [ ] Zod validation schemas
-- [ ] Helper function to get SSH account
-- [ ] `executeWithRetry` wrapper
-- [ ] All file operation procedures
-- [ ] Error logging
+- [ ] Update Zod validation schemas with account resolution
+- [ ] Use `resolveSSHAccount()` in all operations
+- [ ] Update `executeWithRetry` wrapper
+- [ ] Implement all file operation procedures
+- [ ] Add operation logging with resolved account
 - [ ] Error notifications
 
 ---
 
-### 3.3 Update App Router
+### 3.4 Update App Router
 
 **File:** `server/routers/_app.ts`
 
