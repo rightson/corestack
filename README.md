@@ -76,15 +76,23 @@ Comprehensive documentation is available in the `docs/` directory:
 
 ### Core Guides
 
-- **[Architecture](docs/ARCHITECTURE.md)** - System architecture and tech stack overview
-- **[API Reference](docs/API.md)** - tRPC endpoints and WebSocket protocol
-- **[Database Guide](docs/DATABASE.md)** - Schema overview and Drizzle ORM basics
-- **[Authentication](docs/AUTHENTICATION.md)** - Email/password and LDAP authentication
-- **[Development Guide](docs/DEVELOPMENT.md)** - Development workflow and adding features
-- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment and scaling
-- **[WebSocket Guide](docs/WEBSOCKET.md)** - Real-time communication setup
-- **[Task Queue Guide](docs/TASK_QUEUE.md)** - Background job processing
-- **[CLI Guide](docs/CLI.md)** - Command-line interface usage
+| Guide | Description | Implementation Status |
+|-------|-------------|----------------------|
+| **[Architecture](docs/ARCHITECTURE.md)** | System architecture and tech stack overview | 🟢 100% Complete |
+| **[API Reference](docs/API.md)** | tRPC endpoints and WebSocket protocol | 🟢 100% Complete |
+| **[Database Guide](docs/DATABASE.md)** | Schema overview and Drizzle ORM basics | 🟢 95% Complete* |
+| **[Authentication](docs/AUTHENTICATION.md)** | Email/password and LDAP authentication | 🟢 100% Complete |
+| **[Development Guide](docs/DEVELOPMENT.md)** | Development workflow and adding features | 🟢 100% Complete |
+| **[Deployment Guide](docs/DEPLOYMENT.md)** | Production deployment and scaling | 🟡 60% Complete** |
+| **[WebSocket Guide](docs/WEBSOCKET.md)** | Real-time communication setup | 🟢 100% Complete |
+| **[Task Queue Guide](docs/TASK_QUEUE.md)** | Background job processing | 🟢 100% Complete |
+| **[CLI Guide](docs/CLI.md)** | Command-line interface usage | 🟢 100% Complete |
+| **[SSH Remote Operations](docs/SSH.md)** | SSH operations and remote file management | 🟢 100% Complete |
+| **[Bun Adoption](docs/BUN_ADOPTION.md)*** | Bun runtime migration strategy | 🔴 0% Complete |
+
+<sub>*Database: Schema complete, migrations not yet generated via `drizzle-kit generate`</sub>
+<sub>**Deployment: Local Docker setup complete, production CI/CD and monitoring not configured</sub>
+<sub>***Bun Adoption: Design/planning phase only, not yet implemented</sub>
 
 ### Detailed Documentation
 
