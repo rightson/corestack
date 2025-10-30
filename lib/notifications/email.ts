@@ -1,4 +1,4 @@
-import { QueueManager } from '@/lib/queue';
+import { QueueManager, QUEUE_NAMES } from '@/lib/queue';
 import type { SSHOperationResult, SSHAccount } from '@/lib/ssh/types';
 
 export interface EmailNotificationConfig {
@@ -16,7 +16,7 @@ export class SSHErrorNotifier {
   ): Promise<void> {
     const emailContent = this.formatErrorEmail(operation, error, account, config);
 
-    await QueueManager.addJob('EMAIL', 'ssh-error-notification', {
+    await QueueManager.addJob(QUEUE_NAMES.EMAIL, 'ssh-error-notification', {
       to: config.emailAddresses,
       subject: `SSH Operation Failed: ${operation}`,
       body: emailContent,

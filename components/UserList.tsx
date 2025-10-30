@@ -4,6 +4,7 @@ import { trpc } from '@/lib/trpc/Provider';
 import { useState } from 'react';
 
 export function UserList() {
+  const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
 
@@ -12,6 +13,7 @@ export function UserList() {
   const createUser = trpc.user.create.useMutation({
     onSuccess: () => {
       utils.user.list.invalidate();
+      setUsername('');
       setName('');
       setEmail('');
     },
@@ -24,8 +26,8 @@ export function UserList() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (name && email) {
-      createUser.mutate({ name, email });
+    if (username && name && email) {
+      createUser.mutate({ username, name, email });
     }
   };
 
@@ -34,6 +36,15 @@ export function UserList() {
       <h2 className="text-2xl font-bold mb-4">User Management (tRPC)</h2>
 
       <form onSubmit={handleSubmit} className="mb-6 space-y-4">
+        <div>
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
         <div>
           <input
             type="text"
@@ -72,6 +83,7 @@ export function UserList() {
             >
               <div>
                 <p className="font-semibold">{user.name}</p>
+                <p className="text-sm text-gray-600">@{user.username}</p>
                 <p className="text-sm text-gray-600">{user.email}</p>
               </div>
               <button
