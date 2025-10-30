@@ -22,6 +22,7 @@ export const userRouter = router({
   create: publicProcedure
     .input(
       z.object({
+        username: z.string().min(1),
         name: z.string().min(1),
         email: z.string().email(),
       })

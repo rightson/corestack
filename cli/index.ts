@@ -42,11 +42,11 @@ userCmd
   });
 
 userCmd
-  .command('create <name> <email>')
+  .command('create <username> <name> <email>')
   .description('Create a new user')
-  .action(async (name: string, email: string) => {
+  .action(async (username: string, name: string, email: string) => {
     try {
-      const user = await trpcClient.user.create.mutate({ name, email });
+      const user = await trpcClient.user.create.mutate({ username, name, email });
       console.log('Created user:', JSON.stringify(user, null, 2));
     } catch (error) {
       console.error('Error:', error);
@@ -84,7 +84,7 @@ postCmd
   .command('create <title> [content]')
   .description('Create a new post')
   .option('-a, --author <id>', 'Author ID')
-  .action(async (title: string, content: string | undefined, options: any) => {
+  .action(async (title: string, content: string | undefined, options: { author?: string }) => {
     try {
       const post = await trpcClient.post.create.mutate({
         title,

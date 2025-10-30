@@ -1,12 +1,21 @@
 import { Worker, Job } from 'bullmq';
 import { redisConnection, QUEUE_NAMES } from '@/lib/queue/config';
 import * as dotenv from 'dotenv';
+import { createLogger } from '@/lib/observability/logger';
+import {
+  queueJobsTotal,
+  queueJobDuration,
+  queueJobsActive,
+  timeOperation,
+} from '@/lib/observability/metrics';
 
 dotenv.config();
 
+const logger = createLogger({ service: 'queue-worker' });
+
 // Job handlers
 async function handleDefaultJob(job: Job) {
-  console.log(`Processing default job ${job.id}:`, job.data);
+  logger.info({ jobId: job.id, data: job.data }, 'Processing default job');
 
   // Simulate some work
   await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -15,19 +24,18 @@ async function handleDefaultJob(job: Job) {
 }
 
 async function handleEmailJob(job: Job) {
-  console.log(`Processing email job ${job.id}:`, job.data);
-
   const { to, subject, body } = job.data;
+  logger.info({ jobId: job.id, to, subject }, 'Processing email job');
 
   // Simulate sending email
-  console.log(`Sending email to ${to}: ${subject}`);
+  logger.debug({ to, subject }, 'Sending email');
   await new Promise((resolve) => setTimeout(resolve, 2000));
 
   return { success: true, sentAt: new Date().toISOString() };
 }
 
 async function handleProcessingJob(job: Job) {
-  console.log(`Processing job ${job.id}:`, job.data);
+  logger.info({ jobId: job.id, data: job.data }, 'Processing data job');
 
   // Simulate data processing
   const { data } = job.data;
@@ -40,11 +48,22 @@ async function handleProcessingJob(job: Job) {
   };
 }
 
-// Create workers
+// Create workers with metrics
 const defaultWorker = new Worker(
   QUEUE_NAMES.DEFAULT,
   async (job) => {
-    return await handleDefaultJob(job);
+    const endTimer = timeOperation(queueJobDuration, {
+      queue: QUEUE_NAMES.DEFAULT,
+      job_type: job.name || 'default',
+    });
+    queueJobsActive.inc({ queue: QUEUE_NAMES.DEFAULT });
+
+    try {
+      return await handleDefaultJob(job);
+    } finally {
+      queueJobsActive.dec({ queue: QUEUE_NAMES.DEFAULT });
+      endTimer();
+    }
   },
   {
     connection: redisConnection,
@@ -55,7 +74,18 @@ const defaultWorker = new Worker(
 const emailWorker = new Worker(
   QUEUE_NAMES.EMAIL,
   async (job) => {
-    return await handleEmailJob(job);
+    const endTimer = timeOperation(queueJobDuration, {
+      queue: QUEUE_NAMES.EMAIL,
+      job_type: job.name || 'email',
+    });
+    queueJobsActive.inc({ queue: QUEUE_NAMES.EMAIL });
+
+    try {
+      return await handleEmailJob(job);
+    } finally {
+      queueJobsActive.dec({ queue: QUEUE_NAMES.EMAIL });
+      endTimer();
+    }
   },
   {
     connection: redisConnection,
@@ -66,7 +96,18 @@ const emailWorker = new Worker(
 const processingWorker = new Worker(
   QUEUE_NAMES.PROCESSING,
   async (job) => {
-    return await handleProcessingJob(job);
+    const endTimer = timeOperation(queueJobDuration, {
+      queue: QUEUE_NAMES.PROCESSING,
+      job_type: job.name || 'processing',
+    });
+    queueJobsActive.inc({ queue: QUEUE_NAMES.PROCESSING });
+
+    try {
+      return await handleProcessingJob(job);
+    } finally {
+      queueJobsActive.dec({ queue: QUEUE_NAMES.PROCESSING });
+      endTimer();
+    }
   },
   {
     connection: redisConnection,
@@ -79,25 +120,27 @@ const workers = [defaultWorker, emailWorker, processingWorker];
 
 workers.forEach((worker) => {
   worker.on('completed', (job) => {
-    console.log(`Job ${job.id} in queue ${worker.name} completed`);
+    queueJobsTotal.inc({ queue: worker.name, status: 'completed' });
+    logger.info({ jobId: job.id, queue: worker.name }, 'Job completed');
   });
 
   worker.on('failed', (job, err) => {
-    console.error(`Job ${job?.id} in queue ${worker.name} failed:`, err);
+    queueJobsTotal.inc({ queue: worker.name, status: 'failed' });
+    logger.error({ jobId: job?.id, queue: worker.name, error: err }, 'Job failed');
   });
 
   worker.on('error', (err) => {
-    console.error(`Worker ${worker.name} error:`, err);
+    logger.error({ queue: worker.name, error: err }, 'Worker error');
   });
 });
 
-console.log('Workers started for queues:', Object.values(QUEUE_NAMES).join(', '));
+logger.info({ queues: Object.values(QUEUE_NAMES) }, 'Queue workers started');
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
-  console.log('Shutting down workers...');
+  logger.info('Shutting down workers');
   await Promise.all(workers.map((w) => w.close()));
   await redisConnection.quit();
-  console.log('Workers shut down');
+  logger.info('Workers shut down');
   process.exit(0);
 });

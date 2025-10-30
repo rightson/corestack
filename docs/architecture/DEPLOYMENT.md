@@ -47,6 +47,9 @@ PORT=3000
 WS_PORT=3001
 NODE_ENV=production
 
+# Logging
+LOG_LEVEL=info  # trace, debug, info, warn, error, fatal
+
 # Authentication
 JWT_SECRET=your-production-secret-key-make-it-very-long-and-random
 
@@ -158,15 +161,32 @@ Never use `npm run db:push` in production. Always use migrations.
 
 ## Health Checks
 
-### API Health Check
+The application provides Kubernetes-compatible health check endpoints:
+
+### Liveness Probe
+Check if the application is alive:
 ```bash
-curl http://localhost:3000/api/health
+curl http://localhost:3000/api/health/live
+```
+
+### Readiness Probe
+Check if the application is ready to accept traffic (verifies database and Redis):
+```bash
+curl http://localhost:3000/api/health/ready
+```
+
+### Startup Probe
+Check if the application has finished starting:
+```bash
+curl http://localhost:3000/api/health/startup
 ```
 
 ### WebSocket Health Check
 ```bash
 wscat -c ws://localhost:3001 -x '{"type":"ping"}'
 ```
+
+See [Observability Documentation](../features/OBSERVABILITY.md) for detailed health check configuration.
 
 ## Scaling Considerations
 
@@ -198,9 +218,41 @@ server {
 }
 ```
 
-## Monitoring
+## Monitoring and Observability
+
+The application includes production-grade observability features:
+
+### Prometheus Metrics
+
+Metrics are exposed at `/api/metrics` for Prometheus scraping:
+
+```bash
+curl http://localhost:3000/api/metrics
+```
+
+Configure Prometheus to scrape the metrics:
+
+```yaml
+scrape_configs:
+  - job_name: 'lightweight-web'
+    static_configs:
+      - targets: ['your-app:3000']
+    metrics_path: '/api/metrics'
+    scrape_interval: 15s
+```
+
+Available metrics include:
+- HTTP request rates and latency
+- tRPC procedure performance
+- WebSocket connections and messages
+- Queue job processing times
+- Database query performance
+- SSH operation metrics
+- Authentication attempts
 
 ### Application Logs
+
+Structured JSON logs in production:
 
 ```bash
 # PM2 logs
@@ -209,6 +261,26 @@ pm2 logs
 # Docker logs
 docker-compose logs -f
 ```
+
+Configure log level with `LOG_LEVEL` environment variable (trace, debug, info, warn, error, fatal).
+
+### Grafana Dashboards
+
+Create dashboards to visualize:
+- Request rates and error rates
+- p95/p99 latency
+- Active connections (WebSocket, database)
+- Queue depth and processing times
+- System resources (CPU, memory)
+
+### Alerting
+
+Set up alerts for:
+- High error rates
+- Elevated latency
+- Service downtime
+- Queue backlog
+- Resource exhaustion
 
 ### Database Monitoring
 
@@ -220,11 +292,13 @@ psql $DATABASE_URL
 
 ### Queue Monitoring
 
-Consider adding Bull Board for queue monitoring:
+Consider adding Bull Board for visual queue monitoring:
 
 ```bash
 npm install @bull-board/express @bull-board/api
 ```
+
+See [Observability Documentation](../features/OBSERVABILITY.md) for comprehensive monitoring setup, metric definitions, and alerting examples.
 
 ## Backup
 
@@ -252,6 +326,9 @@ psql $DATABASE_URL < backup.sql
 - [ ] Secure LDAP credentials
 - [ ] Enable firewall rules
 - [ ] Regular backups
+- [ ] Configure log aggregation (avoid logging to disk in production)
+- [ ] Set up monitoring and alerting
+- [ ] Restrict access to `/api/metrics` endpoint (authentication/firewall)
 
 ## Troubleshooting
 

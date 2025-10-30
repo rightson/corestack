@@ -60,6 +60,11 @@ Lightweight Web Seed is a modern full-stack application built with Next.js, feat
 - **BullMQ** - Redis-based task queue
 - **WebSocket (ws)** - Real-time bidirectional communication
 
+### Observability
+- **Pino** - High-performance structured logging
+- **Prometheus** - Metrics collection and monitoring
+- **Health Checks** - Kubernetes-compatible liveness/readiness probes
+
 ### Authentication
 - **JWT** - Token-based authentication
 - **LDAP** - Enterprise directory authentication
@@ -85,6 +90,7 @@ lightweight-web-seed/
 ├── lib/                   # Shared libraries
 │   ├── auth/             # Authentication (JWT, LDAP)
 │   ├── db/               # Database & schema
+│   ├── observability/    # Logging, metrics, health checks
 │   ├── trpc/             # tRPC configuration
 │   ├── websocket/        # WebSocket client
 │   └── queue/            # Queue configuration
@@ -119,6 +125,32 @@ Real-time communication for:
 - Notifications
 - Channel-based pub/sub
 
+### Observability and Monitoring
+
+Production-grade observability features:
+
+**Structured Logging**
+- JSON-based logs in production
+- Pretty-printed logs in development
+- Context-aware child loggers
+- Integrated across all services (tRPC, WebSocket, queues)
+
+**Health Checks**
+- `/api/health/live` - Liveness probe
+- `/api/health/ready` - Readiness probe (checks database, Redis)
+- `/api/health/startup` - Startup probe
+
+**Prometheus Metrics**
+- `/api/metrics` - Metrics endpoint
+- HTTP request rates and latency
+- tRPC procedure performance
+- WebSocket connection and message metrics
+- Queue job processing times
+- Database query performance
+- System resources (CPU, memory, event loop)
+
+See [Observability Documentation](../features/OBSERVABILITY.md) for detailed configuration.
+
 ## Detailed Documentation
 
 For detailed architecture information, see:
@@ -136,3 +168,5 @@ For detailed architecture information, see:
 ✅ **Authentication** - Email/password + LDAP support
 ✅ **Database** - Type-safe queries with Drizzle ORM
 ✅ **CLI Client** - Command-line access to all features
+✅ **Observability** - Structured logging, health checks, and Prometheus metrics
+✅ **Production-Ready** - Comprehensive monitoring and uptime tracking
