@@ -7,6 +7,9 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "type-check": "tsc --noEmit",
+    "test": "echo \"No tests configured yet\" && exit 0",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -14,7 +17,8 @@
     "db:seed": "tsx scripts/seed.ts",
     "ws:server": "tsx server/websocket.ts",
     "queue:worker": "tsx server/queue/worker.ts",
-    "cli": "tsx cli/index.ts"
+    "cli": "tsx cli/index.ts",
+    "prepare": "husky"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",
@@ -55,9 +59,16 @@
     "drizzle-kit": "^0.31.5",
     "eslint": "^9",
     "eslint-config-next": "15.5.6",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
     "pino-pretty": "^13.1.2",
     "tailwindcss": "^4",
     "tsx": "^4.20.6",
     "typescript": "^5"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs}": [
+      "eslint --fix"
+    ]
   }
 }
