@@ -1,4 +1,5 @@
-import { authenticate } from 'ldap-authentication';
+import { Client } from 'ldapts';
+import type { SearchResult, Entry } from 'ldapts';
 
 interface LDAPConfig {
   url: string;
@@ -7,6 +8,14 @@ interface LDAPConfig {
   searchBase: string;
   usernameAttribute: string;
   username: string;
+}
+
+interface UserInfo {
+  username: string;
+  name: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 function getLDAPConfig(username: string): LDAPConfig {
@@ -23,7 +32,7 @@ function getLDAPConfig(username: string): LDAPConfig {
 export async function authenticateLDAP(
   username: string,
   password: string
-): Promise<{ success: boolean; userInfo?: any; error?: string }> {
+): Promise<{ success: boolean; userInfo?: UserInfo; error?: string }> {
   const config = getLDAPConfig(username);
 
   // If LDAP is not configured, return error
@@ -34,21 +43,63 @@ export async function authenticateLDAP(
     };
   }
 
+  const client = new Client({
+    url: config.url,
+    timeout: 5000,
+    connectTimeout: 5000,
+  });
+
   try {
-    // Authenticate using ldap-authentication
-    const ldapUser = await authenticate({
-      ldapOpts: {
-        url: config.url,
-      },
-      adminDn: config.bindDN,
-      adminPassword: config.bindPassword,
-      userSearchBase: config.searchBase,
-      usernameAttribute: config.usernameAttribute,
-      username: username,
-      userPassword: password,
+    // First, bind with admin credentials to search for the user
+    await client.bind(config.bindDN, config.bindPassword);
+
+    // Search for the user
+    const searchOptions = {
+      scope: 'sub' as const,
+      filter: `(${config.usernameAttribute}=${username})`,
+      attributes: [
+        'uid',
+        'sAMAccountName',
+        'cn',
+        'displayName',
+        'mail',
+        'userPrincipalName',
+        'givenName',
+        'sn',
+        'dn',
+      ],
+    };
+
+    const searchResult: SearchResult = await client.search(
+      config.searchBase,
+      searchOptions
+    );
+
+    if (!searchResult.searchEntries || searchResult.searchEntries.length === 0) {
+      await client.unbind();
+      return {
+        success: false,
+        error: 'User not found',
+      };
+    }
+
+    const userEntry: Entry = searchResult.searchEntries[0];
+    const userDN = String(userEntry.dn);
+
+    // Unbind admin connection
+    await client.unbind();
+
+    // Now try to bind with the user's credentials to verify password
+    const userClient = new Client({
+      url: config.url,
+      timeout: 5000,
+      connectTimeout: 5000,
     });
 
-    if (!ldapUser) {
+    try {
+      await userClient.bind(userDN, password);
+      await userClient.unbind();
+    } catch {
       return {
         success: false,
         error: 'Invalid credentials',
@@ -56,23 +107,42 @@ export async function authenticateLDAP(
     }
 
     // Extract user information from LDAP response
-    const userInfo = {
-      username: ldapUser.uid || ldapUser.sAMAccountName || username,
-      name: ldapUser.cn || ldapUser.displayName || username,
-      email: ldapUser.mail || ldapUser.userPrincipalName || `${username}@example.com`,
-      firstName: ldapUser.givenName,
-      lastName: ldapUser.sn,
+    // Entry properties are string-indexed and can be string, string[], Buffer, or Buffer[]
+    const getStringValue = (value: string | string[] | Buffer | Buffer[]): string => {
+      if (typeof value === 'string') return value;
+      if (Array.isArray(value) && value.length > 0) {
+        const first = value[0];
+        return typeof first === 'string' ? first : first.toString();
+      }
+      if (Buffer.isBuffer(value)) return value.toString();
+      return '';
+    };
+
+    const userInfo: UserInfo = {
+      username: getStringValue(userEntry.uid || userEntry.sAMAccountName || username),
+      name: getStringValue(userEntry.cn || userEntry.displayName || username),
+      email: getStringValue(userEntry.mail || userEntry.userPrincipalName || `${username}@example.com`),
+      firstName: userEntry.givenName ? getStringValue(userEntry.givenName) : undefined,
+      lastName: userEntry.sn ? getStringValue(userEntry.sn) : undefined,
     };
 
     return {
       success: true,
       userInfo,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // Make sure to unbind on error
+    try {
+      await client.unbind();
+    } catch {
+      // Ignore unbind errors
+    }
+
     console.error('LDAP authentication error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'LDAP authentication failed';
     return {
       success: false,
-      error: error.message || 'LDAP authentication failed',
+      error: errorMessage,
     };
   }
 }

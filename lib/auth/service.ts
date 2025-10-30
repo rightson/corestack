@@ -47,7 +47,7 @@ export async function authenticateUser(
     else if (authType === 'ldap') {
       const ldapResult = await authenticateLDAP(username, password);
 
-      if (!ldapResult.success) {
+      if (!ldapResult.success || !ldapResult.userInfo) {
         return { success: false, error: ldapResult.error };
       }
 
