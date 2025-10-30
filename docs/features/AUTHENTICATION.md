@@ -115,7 +115,7 @@ Users with `mustChangePassword: true`:
 
 For more details, see:
 - [Login Verification](./authentication/login-verification.md) - Complete login flow verification
-- [Authentication Flow](./architecture/auth-flow.md) - Detailed authentication diagrams
+- [Authentication Flow](../architecture/auth-flow.md) - Detailed authentication diagrams
 - [LDAP Setup](./authentication/ldap-setup.md) - LDAP configuration guide
 
 ## Security Best Practices

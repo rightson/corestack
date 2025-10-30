@@ -113,7 +113,7 @@ curl -X POST http://localhost:3000/api/queue/add \
 
 ## WebSocket Protocol
 
-See [WebSocket Flow](./architecture/websocket-flow.md) for complete documentation.
+See [WebSocket Flow](./websocket-flow.md) for complete documentation.
 
 **Connect:** `ws://localhost:3001`
 
@@ -127,7 +127,7 @@ See [WebSocket Flow](./architecture/websocket-flow.md) for complete documentatio
 
 For complete API details, see:
 - [tRPC Endpoints](./api/trpc-endpoints.md) - All tRPC procedures
-- [WebSocket Protocol](./architecture/websocket-flow.md) - Real-time messaging
+- [WebSocket Protocol](./websocket-flow.md) - Real-time messaging
 - [Queue API](./task-queue/api.md) - Background job management
 
 ## Type Safety

@@ -435,9 +435,9 @@ When adding new features:
 
 ## Related Documentation
 
-- [Main Architecture](./ARCHITECTURE.md)
-- [Database Guide](./DATABASE.md)
-- [API Documentation](./API.md)
+- [Main Architecture](../architecture/ARCHITECTURE.md)
+- [Database Guide](../architecture/DATABASE.md)
+- [API Documentation](../architecture/API.md)
 - [Authentication](./AUTHENTICATION.md)
 
 ## Questions?

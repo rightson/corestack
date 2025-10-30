@@ -122,11 +122,11 @@ Real-time communication for:
 ## Detailed Documentation
 
 For detailed architecture information, see:
-- [Request Flow](./architecture/request-flow.md) - How API calls flow through the system
-- [WebSocket Flow](./architecture/websocket-flow.md) - Real-time message handling
-- [Job Processing Flow](./architecture/job-flow.md) - Background job execution
-- [Authentication Flow](./architecture/auth-flow.md) - Login and token management
-- [Data Flow](./architecture/data-flow.md) - Database queries and caching
+- [Request Flow](./request-flow.md) - How API calls flow through the system
+- [WebSocket Flow](./websocket-flow.md) - Real-time message handling
+- [Job Processing Flow](./job-flow.md) - Background job execution
+- [Authentication Flow](./auth-flow.md) - Login and token management
+- [Data Flow](./data-flow.md) - Database queries and caching
 
 ## Key Features
 

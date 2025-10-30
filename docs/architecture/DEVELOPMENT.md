@@ -97,7 +97,7 @@ See: [Component Guide](./development/components.md)
 1. Add worker in `server/queue/workers.ts`
 2. Add job: `QueueManager.addJob('queue', 'job-name', data)`
 
-See: [Task Queue](./TASK_QUEUE.md)
+See: [Task Queue](../features/TASK_QUEUE.md)
 
 ## Code Style
 
