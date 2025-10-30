@@ -1,9 +1,17 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import * as dotenv from 'dotenv';
+import { createLogger } from '@/lib/observability/logger';
+import {
+  wsConnectionsActive,
+  wsConnectionsTotal,
+  wsMessagesTotal,
+  wsChannelSubscriptions,
+} from '@/lib/observability/metrics';
 
 dotenv.config();
 
 const WS_PORT = parseInt(process.env.WS_PORT || '3001');
+const logger = createLogger({ service: 'websocket' });
 
 const wss = new WebSocketServer({ port: WS_PORT });
 
@@ -29,7 +37,11 @@ wss.on('connection', (ws: WebSocket) => {
 
   clients.set(clientId, client);
 
-  console.log(`Client connected: ${clientId} (Total: ${clients.size})`);
+  // Update metrics
+  wsConnectionsActive.inc();
+  wsConnectionsTotal.inc({ event: 'connect' });
+
+  logger.info({ clientId, totalClients: clients.size }, 'Client connected');
 
   // Send welcome message
   ws.send(
@@ -43,35 +55,43 @@ wss.on('connection', (ws: WebSocket) => {
   ws.on('message', (data: Buffer) => {
     try {
       const message = JSON.parse(data.toString());
+      wsMessagesTotal.inc({ direction: 'inbound', type: message.type || 'unknown' });
 
       switch (message.type) {
         case 'subscribe':
           if (message.channel) {
             client.subscriptions.add(message.channel);
+            wsChannelSubscriptions.inc({ channel: message.channel });
+            logger.debug({ clientId, channel: message.channel }, 'Client subscribed to channel');
             ws.send(
               JSON.stringify({
                 type: 'subscribed',
                 channel: message.channel,
               })
             );
+            wsMessagesTotal.inc({ direction: 'outbound', type: 'subscribed' });
           }
           break;
 
         case 'unsubscribe':
           if (message.channel) {
             client.subscriptions.delete(message.channel);
+            wsChannelSubscriptions.dec({ channel: message.channel });
+            logger.debug({ clientId, channel: message.channel }, 'Client unsubscribed from channel');
             ws.send(
               JSON.stringify({
                 type: 'unsubscribed',
                 channel: message.channel,
               })
             );
+            wsMessagesTotal.inc({ direction: 'outbound', type: 'unsubscribed' });
           }
           break;
 
         case 'broadcast':
           // Broadcast to all clients subscribed to the channel
           const channel = message.channel || 'default';
+          let broadcastCount = 0;
           clients.forEach((c) => {
             if (c.subscriptions.has(channel) && c.ws.readyState === WebSocket.OPEN) {
               c.ws.send(
@@ -82,45 +102,63 @@ wss.on('connection', (ws: WebSocket) => {
                   from: clientId,
                 })
               );
+              wsMessagesTotal.inc({ direction: 'outbound', type: 'message' });
+              broadcastCount++;
             }
           });
+          logger.debug({ clientId, channel, recipients: broadcastCount }, 'Broadcast message sent');
           break;
 
         case 'ping':
           ws.send(JSON.stringify({ type: 'pong' }));
+          wsMessagesTotal.inc({ direction: 'outbound', type: 'pong' });
           break;
 
         default:
+          logger.warn({ clientId, messageType: message.type }, 'Unknown message type');
           ws.send(
             JSON.stringify({
               type: 'error',
               message: 'Unknown message type',
             })
           );
+          wsMessagesTotal.inc({ direction: 'outbound', type: 'error' });
       }
     } catch (error) {
-      console.error('Error processing message:', error);
+      logger.error({ error, clientId }, 'Error processing message');
       ws.send(
         JSON.stringify({
           type: 'error',
           message: 'Invalid message format',
         })
       );
+      wsMessagesTotal.inc({ direction: 'outbound', type: 'error' });
     }
   });
 
   ws.on('close', () => {
+    // Decrement channel subscriptions
+    client.subscriptions.forEach((channel) => {
+      wsChannelSubscriptions.dec({ channel });
+    });
+
     clients.delete(clientId);
-    console.log(`Client disconnected: ${clientId} (Total: ${clients.size})`);
+
+    // Update metrics
+    wsConnectionsActive.dec();
+    wsConnectionsTotal.inc({ event: 'disconnect' });
+
+    logger.info({ clientId, totalClients: clients.size }, 'Client disconnected');
   });
 
   ws.on('error', (error) => {
-    console.error(`WebSocket error for client ${clientId}:`, error);
+    logger.error({ error, clientId }, 'WebSocket error');
   });
 });
 
 // Broadcast function for external use
 export function broadcast(channel: string, data: any) {
+  let broadcastCount = 0;
   clients.forEach((client) => {
     if (client.subscriptions.has(channel) && client.ws.readyState === WebSocket.OPEN) {
       client.ws.send(
@@ -130,17 +168,20 @@ export function broadcast(channel: string, data: any) {
           data,
         })
       );
+      wsMessagesTotal.inc({ direction: 'outbound', type: 'message' });
+      broadcastCount++;
     }
   });
+  logger.debug({ channel, recipients: broadcastCount }, 'External broadcast sent');
 }
 
-console.log(`WebSocket server running on port ${WS_PORT}`);
+logger.info({ port: WS_PORT }, 'WebSocket server running');
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-  console.log('Shutting down WebSocket server...');
+  logger.info('Shutting down WebSocket server');
   wss.close(() => {
-    console.log('WebSocket server closed');
+    logger.info('WebSocket server closed');
     process.exit(0);
   });
 });

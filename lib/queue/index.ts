@@ -1,5 +1,9 @@
 import { Queue, JobsOptions } from 'bullmq';
 import { defaultQueueOptions, QUEUE_NAMES } from './config';
+import { createLogger } from '@/lib/observability/logger';
+import { queueJobsTotal } from '@/lib/observability/metrics';
+
+const logger = createLogger({ service: 'queue-manager' });
 
 // Create queues
 const queues = {
@@ -21,11 +25,20 @@ export class QueueManager {
   ) {
     const queue = queues[queueName];
     if (!queue) {
+      logger.error({ queueName }, 'Queue not found');
       throw new Error(`Queue ${queueName} not found`);
     }
 
     const job = await queue.add(jobName, data, options);
-    console.log(`Job ${jobName} added to queue ${queueName} with id ${job.id}`);
+
+    // Record metrics
+    queueJobsTotal.inc({ queue: queueName, status: 'added' });
+
+    logger.info(
+      { jobName, queueName, jobId: job.id, priority: options?.priority },
+      'Job added to queue'
+    );
+
     return job;
   }
 
@@ -39,7 +52,9 @@ export class QueueManager {
   }
 
   static async close() {
+    logger.info('Closing all queues');
     await Promise.all(Object.values(queues).map((q) => q.close()));
+    logger.info('All queues closed');
   }
 }
 
