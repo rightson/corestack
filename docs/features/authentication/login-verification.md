@@ -238,18 +238,21 @@ However, the code review confirms:
 ## Recent Changes
 
 ### LDAP Library Update
-- Replaced deprecated `ldapjs` with `ldap-authentication`
-- Simplified LDAP authentication code from 120 lines to 78 lines
+- Replaced `ldap-authentication` with `ldapts` (TypeScript-native LDAP client)
+- Full TypeScript support with native type definitions
+- Promise-based API with async/await syntax
 - Added `LDAP_USERNAME_ATTRIBUTE` configuration option
 - Improved error handling and user info extraction
 - Supports both OpenLDAP (uid) and Active Directory (sAMAccountName) attributes
 
 ### Benefits
-- Eliminated deprecation warnings during npm install
-- Simpler, more maintainable code
-- Better support for different LDAP server types
-- More reliable error messages
-- Async/await syntax instead of callbacks
+- Native TypeScript support with full type safety
+- Better IDE autocomplete and type checking
+- Modern promise-based API
+- Improved error handling and debugging
+- Active development and community support
+- Better performance and maintainability
+- **Advanced LDAP queries**: Enables querying mail groups and directory objects for future features
 
 ## Recommendations
 

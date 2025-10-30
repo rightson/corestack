@@ -233,28 +233,101 @@ LDAP_USERNAME_ATTRIBUTE=uid
 
 ## Implementation Details
 
-The LDAP authentication is implemented in `lib/auth/ldap.ts`:
+The LDAP authentication is implemented in `lib/auth/ldap.ts` using the `ldapts` library:
 
 ```typescript
-import { authenticate } from 'ldap-authentication';
+import { Client } from 'ldapts';
 
 export async function authenticateLDAP(
   username: string,
   password: string
 ): Promise<{ success: boolean; userInfo?: any; error?: string }> {
-  const ldapUser = await authenticate({
-    ldapOpts: { url: LDAP_URL },
-    adminDn: LDAP_BIND_DN,
-    adminPassword: LDAP_BIND_PASSWORD,
-    userSearchBase: LDAP_SEARCH_BASE,
-    usernameAttribute: LDAP_USERNAME_ATTRIBUTE,
-    username: username,
-    userPassword: password,
+  const client = new Client({
+    url: LDAP_URL,
+    timeout: 5000,
+    connectTimeout: 5000,
   });
+
+  // 1. Bind with admin credentials
+  await client.bind(LDAP_BIND_DN, LDAP_BIND_PASSWORD);
+
+  // 2. Search for user
+  const searchResult = await client.search(LDAP_SEARCH_BASE, {
+    scope: 'sub',
+    filter: `(${LDAP_USERNAME_ATTRIBUTE}=${username})`,
+  });
+
+  // 3. Authenticate user with their credentials
+  const userDN = searchResult.searchEntries[0].dn;
+  await userClient.bind(userDN, password);
 
   // Extract user info and return
 }
 ```
+
+### Why ldapts?
+
+`ldapts` is a modern TypeScript-native LDAP client that provides:
+- Full TypeScript support with native type definitions
+- Promise-based API with async/await
+- Better performance and maintainability
+- Active development and community support
+- Improved error handling and security
+- **Advanced LDAP queries**: Support for querying mail groups and other directory objects
+- Full control over LDAP operations for future extensibility
+
+## Future Enhancements
+
+The `ldapts` library enables advanced LDAP directory queries beyond authentication:
+
+### Mail Group Queries
+
+Query mail groups and distribution lists:
+
+```typescript
+import { Client } from 'ldapts';
+
+const client = new Client({ url: LDAP_URL });
+await client.bind(LDAP_BIND_DN, LDAP_BIND_PASSWORD);
+
+// Search for mail groups
+const result = await client.search('ou=groups,dc=company,dc=com', {
+  scope: 'sub',
+  filter: '(objectClass=groupOfNames)',
+  attributes: ['cn', 'mail', 'member'],
+});
+
+// Get group members
+for (const group of result.searchEntries) {
+  console.log(`Group: ${group.cn}`);
+  console.log(`Email: ${group.mail}`);
+  console.log(`Members: ${group.member}`);
+}
+```
+
+### Group Membership Verification
+
+Check if a user belongs to specific groups:
+
+```typescript
+// Search for user's group memberships
+const result = await client.search(userDN, {
+  scope: 'base',
+  filter: '(objectClass=*)',
+  attributes: ['memberOf'],
+});
+
+const userGroups = result.searchEntries[0].memberOf;
+```
+
+### Advanced Directory Queries
+
+The full-featured `ldapts` client enables:
+- Organizational unit queries
+- Distribution list management
+- Directory attribute searches
+- Complex filter operations
+- Batch operations
 
 ## Support
 

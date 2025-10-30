@@ -29,10 +29,12 @@ Local database authentication:
 
 ### LDAP
 
-Enterprise directory authentication:
+Enterprise directory authentication powered by `ldapts`:
 - Supports OpenLDAP and Active Directory
 - Auto-creates user accounts on first login
 - Syncs user information from LDAP
+- **Advanced capabilities**: Query mail groups and directory objects
+- TypeScript-native with full type safety
 
 ### Configuration
 
