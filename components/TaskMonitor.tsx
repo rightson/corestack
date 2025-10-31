@@ -34,8 +34,9 @@ export function TaskMonitor({ projectId }: TaskMonitorProps) {
     { workflowId: workflowId! },
     {
       enabled: !!workflowId,
-      refetchInterval: (data?: { status: string }) => {
+      refetchInterval: (query) => {
         // Stop polling if workflow is completed, failed, or cancelled
+        const data = query.state.data;
         if (
           data?.status === 'COMPLETED' ||
           data?.status === 'FAILED' ||
@@ -321,7 +322,7 @@ export function WorkflowList() {
         <div className="text-center py-8 text-gray-600">No workflows found</div>
       ) : (
         <div className="space-y-3">
-          {data?.workflows.map((workflow: { workflowId: string; status: string; type: string; startTime?: string; closeTime?: string; runId: string }) => (
+          {data?.workflows.map((workflow: { workflowId: string; status: string; type: string; startTime?: Date; closeTime?: Date; runId: string }) => (
             <div
               key={workflow.workflowId}
               className="border border-gray-300 rounded-lg p-4 hover:bg-gray-50"
@@ -340,7 +341,7 @@ export function WorkflowList() {
                     {workflow.workflowId}
                   </p>
                   <p className="text-xs text-gray-500">
-                    Started: {workflow.startTime ? new Date(workflow.startTime).toLocaleString() : 'N/A'}
+                    Started: {workflow.startTime ? workflow.startTime.toLocaleString() : 'N/A'}
                   </p>
                 </div>
               </div>

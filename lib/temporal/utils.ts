@@ -137,11 +137,11 @@ export async function describeWorkflow(
 /**
  * Wait for workflow completion with timeout
  */
-export async function waitForWorkflow<T = unknown>(
-  handle: WorkflowHandle<T>,
+export async function waitForWorkflow(
+  handle: WorkflowHandle,
   timeoutMs: number = 60000
-): Promise<T> {
-  const timeoutPromise = new Promise<T>((_, reject) =>
+): Promise<unknown> {
+  const timeoutPromise = new Promise<never>((_, reject) =>
     setTimeout(() => reject(new Error('Workflow timeout')), timeoutMs)
   );
 
