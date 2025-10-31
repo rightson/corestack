@@ -1,8 +1,6 @@
 # Lightweight Web Seed - Codebase Exploration Summary
 *For Non-Docker/K8s Developers*
 
-Generated: 2025-10-30
-
 ---
 
 ## Executive Summary
@@ -42,7 +40,7 @@ This is a **production-grade full-stack TypeScript application** combining:
 
 ### Root-Level Files
 ```
-/home/user/lightweight-web-seed/
+$CODEBASE/
 ├── package.json              # 74 lines - Dependencies & npm scripts
 ├── tsconfig.json             # TypeScript configuration
 ├── next.config.ts            # Next.js configuration
@@ -254,7 +252,7 @@ docs/
 ### 0% (Planning Phase)
 - Bun Runtime Adoption
 
-All documentation is located in `/home/user/lightweight-web-seed/docs/`
+All documentation is located in `$CODEBASE/docs/`
 
 ---
 
@@ -299,7 +297,7 @@ npm run prepare          # Setup Husky git hooks
 - **Path Alias:** `@/*` maps to project root
 
 ### Pre-push Git Hook
-File: `/home/user/lightweight-web-seed/.husky/pre-push`
+File: `$CODEBASE/.husky/pre-push`
 ```bash
 npm run type-check       # Must pass TypeScript checks
 npm test                 # Must pass tests (placeholder)
@@ -315,7 +313,7 @@ npm test                 # Must pass tests (placeholder)
 postgresql://username:password@host:port/database
 ```
 
-**Drizzle Config File:** `/home/user/lightweight-web-seed/drizzle.config.ts`
+**Drizzle Config File:** `$CODEBASE/drizzle.config.ts`
 
 ### Database Schema (10 Tables)
 
@@ -357,7 +355,7 @@ postgresql://username:password@host:port/database
     - Constraint: unique(projectId, sshAccountId)
 
 ### Database Client
-File: `/home/user/lightweight-web-seed/lib/db/index.ts`
+File: `$CODEBASE/lib/db/index.ts`
 ```typescript
 export const db = drizzle(queryClient, { schema })
 ```
@@ -376,7 +374,7 @@ export const db = drizzle(queryClient, { schema })
 ## 6. ENVIRONMENT VARIABLES & CONFIG
 
 ### Environment File: `.env.example`
-Location: `/home/user/lightweight-web-seed/.env.example`
+Location: `$CODEBASE/.env.example`
 
 **Required Variables:**
 ```env
@@ -455,7 +453,7 @@ Pre-push validation requires:
 ## 8. ADDITIONAL FEATURES
 
 ### Authentication System
-**File:** `/home/user/lightweight-web-seed/lib/auth/service.ts` (154 lines)
+**File:** `$CODEBASE/lib/auth/service.ts` (154 lines)
 
 **Supported Methods:**
 - Email/password with bcryptjs hashing
@@ -467,7 +465,7 @@ Pre-push validation requires:
 - Password: `Must-Changed` (must be changed in production)
 
 ### WebSocket Server
-**File:** `/home/user/lightweight-web-seed/server/websocket.ts` (187 lines)
+**File:** `$CODEBASE/server/websocket.ts` (187 lines)
 
 **Features:**
 - Standalone service on port 3001
@@ -483,10 +481,10 @@ npm run ws:server
 ```
 
 ### Task Queue (BullMQ)
-**Files:** 
-- Manager: `/home/user/lightweight-web-seed/lib/queue/index.ts`
-- Worker: `/home/user/lightweight-web-seed/server/queue/worker.ts`
-- Config: `/home/user/lightweight-web-seed/lib/queue/config.ts`
+**Files:**
+- Manager: `$CODEBASE/lib/queue/index.ts`
+- Worker: `$CODEBASE/server/queue/worker.ts`
+- Config: `$CODEBASE/lib/queue/config.ts`
 
 **Features:**
 - Three queues: DEFAULT, EMAIL, PROCESSING
@@ -510,26 +508,26 @@ npm run queue:worker
 
 ### Observability Stack
 
-**Logging (Pino):** `/home/user/lightweight-web-seed/lib/observability/logger.ts`
+**Logging (Pino):** `$CODEBASE/lib/observability/logger.ts`
 - Structured JSON logs
 - Development: pretty-printed
 - Production: JSON format
 - Context-aware child loggers
 
-**Metrics (Prometheus):** `/home/user/lightweight-web-seed/lib/observability/metrics.ts`
+**Metrics (Prometheus):** `$CODEBASE/lib/observability/metrics.ts`
 - HTTP request metrics
 - tRPC procedure metrics
 - WebSocket connection metrics
 - Queue job metrics
 - Prometheus endpoint: `/api/metrics`
 
-**Health Checks:** `/home/user/lightweight-web-seed/lib/observability/health.ts`
+**Health Checks:** `$CODEBASE/lib/observability/health.ts`
 - `/api/health/startup` - Startup probe
 - `/api/health/live` - Liveness probe
 - `/api/health/ready` - Readiness probe
 
 ### CLI Client
-**File:** `/home/user/lightweight-web-seed/cli/index.ts`
+**File:** `$CODEBASE/cli/index.ts`
 
 **Commands:**
 ```bash
@@ -648,43 +646,43 @@ npm run db:generate      # Create migrations
 ## 11. KEY FILE PATHS (Absolute)
 
 ### Configuration
-- `/home/user/lightweight-web-seed/package.json` - Dependencies
-- `/home/user/lightweight-web-seed/tsconfig.json` - TypeScript config
-- `/home/user/lightweight-web-seed/next.config.ts` - Next.js config
-- `/home/user/lightweight-web-seed/eslint.config.mjs` - Linting rules
-- `/home/user/lightweight-web-seed/drizzle.config.ts` - DB migrations
-- `/home/user/lightweight-web-seed/.env.example` - Env template
+- `$CODEBASE/package.json` - Dependencies
+- `$CODEBASE/tsconfig.json` - TypeScript config
+- `$CODEBASE/next.config.ts` - Next.js config
+- `$CODEBASE/eslint.config.mjs` - Linting rules
+- `$CODEBASE/drizzle.config.ts` - DB migrations
+- `$CODEBASE/.env.example` - Env template
 
 ### Database
-- `/home/user/lightweight-web-seed/lib/db/schema.ts` - Schema definitions
-- `/home/user/lightweight-web-seed/lib/db/index.ts` - DB client
+- `$CODEBASE/lib/db/schema.ts` - Schema definitions
+- `$CODEBASE/lib/db/index.ts` - DB client
 
 ### Authentication
-- `/home/user/lightweight-web-seed/lib/auth/service.ts` - Auth logic
-- `/home/user/lightweight-web-seed/lib/auth/jwt.ts` - JWT handling
-- `/home/user/lightweight-web-seed/lib/auth/ldap.ts` - LDAP integration
+- `$CODEBASE/lib/auth/service.ts` - Auth logic
+- `$CODEBASE/lib/auth/jwt.ts` - JWT handling
+- `$CODEBASE/lib/auth/ldap.ts` - LDAP integration
 
 ### API
-- `/home/user/lightweight-web-seed/lib/trpc/trpc.ts` - tRPC setup
-- `/home/user/lightweight-web-seed/server/routers/_app.ts` - Root router
-- `/home/user/lightweight-web-seed/app/api/trpc/[trpc]/route.ts` - tRPC endpoint
+- `$CODEBASE/lib/trpc/trpc.ts` - tRPC setup
+- `$CODEBASE/server/routers/_app.ts` - Root router
+- `$CODEBASE/app/api/trpc/[trpc]/route.ts` - tRPC endpoint
 
 ### Real-time
-- `/home/user/lightweight-web-seed/server/websocket.ts` - WebSocket server
-- `/home/user/lightweight-web-seed/lib/queue/index.ts` - Queue manager
-- `/home/user/lightweight-web-seed/server/queue/worker.ts` - Queue worker
+- `$CODEBASE/server/websocket.ts` - WebSocket server
+- `$CODEBASE/lib/queue/index.ts` - Queue manager
+- `$CODEBASE/server/queue/worker.ts` - Queue worker
 
 ### Observability
-- `/home/user/lightweight-web-seed/lib/observability/logger.ts` - Pino logger
-- `/home/user/lightweight-web-seed/lib/observability/metrics.ts` - Prometheus metrics
-- `/home/user/lightweight-web-seed/lib/observability/health.ts` - Health checks
+- `$CODEBASE/lib/observability/logger.ts` - Pino logger
+- `$CODEBASE/lib/observability/metrics.ts` - Prometheus metrics
+- `$CODEBASE/lib/observability/health.ts` - Health checks
 
 ### CLI
-- `/home/user/lightweight-web-seed/cli/index.ts` - CLI commands
+- `$CODEBASE/cli/index.ts` - CLI commands
 
 ### Documentation
-- `/home/user/lightweight-web-seed/docs/` - All documentation
-- `/home/user/lightweight-web-seed/README.md` - Main README
+- `$CODEBASE/docs/` - All documentation
+- `$CODEBASE/README.md` - Main README
 
 ---
 
@@ -730,4 +728,4 @@ For creating a Non-Docker development guide, focus on:
 7. WebSocket integration guide
 8. Queue job implementation
 
-All documentation foundation exists in `/docs/` directory.
+All documentation foundation exists in `$CODEBASE/docs/` directory.
