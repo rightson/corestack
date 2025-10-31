@@ -26,7 +26,7 @@ Documentation for features and technologies being researched, evaluated, or plan
 - Migration plans
 
 **Example:**
-- [Bun Adoption](./proposal/BUN_ADOPTION.md) - proposal of Bun runtime for the stack
+- [Bun Adoption](./proposal/bun_adoption.md) - proposal of Bun runtime for the stack
 
 **When to add docs here:**
 - When researching new technologies
@@ -50,11 +50,11 @@ Documentation for implemented features and how to use them. These are production
 - How-to guides
 
 **Examples:**
-- [SSH Remote Operations](./features/SSH.md) - SSH feature with detailed subdocs
-- [WebSocket](./features/WEBSOCKET.md) - Real-time communication guide
-- [Task Queue](./features/TASK_QUEUE.md) - Background job processing
-- [Authentication](./features/AUTHENTICATION.md) - Auth setup and usage
-- [CLI](./features/CLI.md) - Command-line interface guide
+- [SSH Remote Operations](./features/ssh.md) - SSH feature with detailed subdocs
+- [WebSocket](./features/websocket.md) - Real-time communication guide
+- [Task Queue](./features/task_queue.md) - Background job processing
+- [Authentication](./features/authentication.md) - Auth setup and usage
+- [CLI](./features/cli.md) - Command-line interface guide
 
 **When to add docs here:**
 - After implementing a feature
@@ -79,11 +79,11 @@ System-level architecture documentation, design decisions, and technical referen
 - Deployment procedures
 
 **Examples:**
-- [Architecture Overview](./architecture/ARCHITECTURE.md) - System design and components
-- [API Documentation](./architecture/API.md) - tRPC endpoints reference
-- [Database Guide](./architecture/DATABASE.md) - Schema and queries
-- [Development Guide](./architecture/DEVELOPMENT.md) - Dev setup and workflows
-- [Deployment](./architecture/DEPLOYMENT.md) - Production deployment
+- [Architecture Overview](./architecture/architecture.md) - System design and components
+- [API Documentation](./architecture/api.md) - tRPC endpoints reference
+- [Database Guide](./architecture/database.md) - Schema and queries
+- [Development Guide](./architecture/development.md) - Dev setup and workflows
+- [Deployment](./architecture/deployment.md) - Production deployment
 - Flow diagrams: [Request Flow](./architecture/request-flow.md), [WebSocket Flow](./architecture/websocket-flow.md), [Job Flow](./architecture/job-flow.md), [Auth Flow](./architecture/auth-flow.md)
 
 **When to add docs here:**
@@ -98,8 +98,8 @@ System-level architecture documentation, design decisions, and technical referen
 ## Quick Navigation
 
 ### For Developers
-1. Start with [Architecture Overview](./architecture/ARCHITECTURE.md) to understand the system
-2. Check [Development Guide](./architecture/DEVELOPMENT.md) for dev setup
+1. Start with [Architecture Overview](./architecture/architecture.md) to understand the system
+2. Check [Development Guide](./architecture/development.md) for dev setup
 3. Browse [Features](./features/) for specific feature documentation
 
 ### For Contributors
@@ -182,7 +182,7 @@ When referencing docs in other categories:
 
 ### File Naming
 
-- Use UPPERCASE for major docs: `ARCHITECTURE.md`, `SSH.md`
+- Use UPPERCASE for major docs: `architecture.md`, `ssh.md`
 - Use lowercase with hyphens for flow/detail docs: `auth-flow.md`, `request-flow.md`
 - Use descriptive names that indicate content
 - Keep names concise but clear
@@ -194,7 +194,7 @@ When referencing docs in other categories:
 - **For feature usage questions**: Check `features/`
 - **For system design questions**: Check `architecture/`
 - **For proposed changes**: Check `proposal/`
-- **For development setup**: See [Development Guide](./architecture/DEVELOPMENT.md)
+- **For development setup**: See [Development Guide](./architecture/development.md)
 
 ---
 
