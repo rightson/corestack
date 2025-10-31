@@ -149,7 +149,7 @@ Production-grade observability features:
 - Database query performance
 - System resources (CPU, memory, event loop)
 
-See [Observability Documentation](../features/OBSERVABILITY.md) for detailed configuration.
+See [Observability Documentation](../features/observability.md) for detailed configuration.
 
 ## Detailed Documentation
 

@@ -1314,7 +1314,7 @@ export async function POST(request: Request) {
 
 ## Next Steps
 
-- [SSH Architecture](./SSH_ARCHITECTURE.md)
-- [SSH Database Schema](./SSH_DATABASE.md)
+- [SSH Architecture](./SSH_architecture.md)
+- [SSH Database Schema](./SSH_database.md)
 - [SSH Security](./SSH_SECURITY.md)
 - [SSH Implementation Plan](./SSH_IMPLEMENTATION.md)

@@ -501,7 +501,7 @@ const account = await resolveSSHAccount({ projectId: 1 });
 ## Next Steps
 
 See related documentation:
-- [SSH Database Schema](./SSH_DATABASE.md)
-- [SSH API Design](./SSH_API.md)
+- [SSH Database Schema](./SSH_database.md)
+- [SSH API Design](./SSH_api.md)
 - [SSH Security](./SSH_SECURITY.md)
 - [SSH Implementation Plan](./SSH_IMPLEMENTATION.md)

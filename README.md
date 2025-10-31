@@ -148,26 +148,26 @@ Comprehensive documentation is available in the `docs/` directory:
 
 | Guide | Description |
 |-------|-------------|
-| **[Manage Utility Design](docs/proposal/INTERACTIVE_MANAGE_UTILITY.md)** | Design proposal for the interactive management utility (planned feature) |
-| **[Codebase Exploration](docs/development/CODEBASE_EXPLORATION_SUMMARY.md)** | Comprehensive overview of the codebase structure, architecture, and key components |
-| **[Local Development Guide](docs/development/LOCAL_DEVELOPMENT_GUIDE.md)** | Step-by-step guide for setting up the project without Docker/Kubernetes |
+| **[Manage Utility Design](docs/proposal/interactive_manage_utility.md)** | Design proposal for the interactive management utility (planned feature) |
+| **[Codebase Exploration](docs/development/codebase_exploration_summary.md)** | Comprehensive overview of the codebase structure, architecture, and key components |
+| **[Local Development Guide](docs/development/local_development_guide.md)** | Step-by-step guide for setting up the project without Docker/Kubernetes |
 
 ### Core Guides
 
 | Guide | Description | Implementation Status |
 |-------|-------------|----------------------|
-| **[Architecture](docs/ARCHITECTURE.md)** | System architecture and tech stack overview | 🟢 100% Complete |
-| **[API Reference](docs/API.md)** | tRPC endpoints and WebSocket protocol | 🟢 100% Complete |
-| **[Database Guide](docs/DATABASE.md)** | Schema overview and Drizzle ORM basics | 🟢 95% Complete* |
-| **[Authentication](docs/AUTHENTICATION.md)** | Email/password and LDAP authentication | 🟢 100% Complete |
-| **[Development Guide](docs/DEVELOPMENT.md)** | Development workflow and adding features | 🟢 100% Complete |
-| **[Deployment Guide](docs/DEPLOYMENT.md)** | Production deployment and scaling | 🟡 60% Complete** |
-| **[WebSocket Guide](docs/WEBSOCKET.md)** | Real-time communication setup | 🟢 100% Complete |
-| **[Task Queue Guide](docs/TASK_QUEUE.md)** | Background job processing (BullMQ) | 🟢 100% Complete |
-| **[Temporal Integration](docs/features/TEMPORAL_TASK_QUEUE.md)** | Workflow orchestration with Temporal | 🟢 100% Complete |
-| **[CLI Guide](docs/CLI.md)** | Command-line interface usage | 🟢 100% Complete |
-| **[SSH Remote Operations](docs/SSH.md)** | SSH operations and remote file management | 🟢 100% Complete |
-| **[Bun Adoption](docs/BUN_ADOPTION.md)*** | Bun runtime migration strategy | 🔴 0% Complete |
+| **[Architecture](docs/architecture.md)** | System architecture and tech stack overview | 🟢 100% Complete |
+| **[API Reference](docs/api.md)** | tRPC endpoints and WebSocket protocol | 🟢 100% Complete |
+| **[Database Guide](docs/database.md)** | Schema overview and Drizzle ORM basics | 🟢 95% Complete* |
+| **[Authentication](docs/authentication.md)** | Email/password and LDAP authentication | 🟢 100% Complete |
+| **[Development Guide](docs/development.md)** | Development workflow and adding features | 🟢 100% Complete |
+| **[Deployment Guide](docs/deployment.md)** | Production deployment and scaling | 🟡 60% Complete** |
+| **[WebSocket Guide](docs/websocket.md)** | Real-time communication setup | 🟢 100% Complete |
+| **[Task Queue Guide](docs/task_queue.md)** | Background job processing (BullMQ) | 🟢 100% Complete |
+| **[Temporal Integration](docs/features/TEMPORAL_task_queue.md)** | Workflow orchestration with Temporal | 🟢 100% Complete |
+| **[CLI Guide](docs/cli.md)** | Command-line interface usage | 🟢 100% Complete |
+| **[SSH Remote Operations](docs/ssh.md)** | SSH operations and remote file management | 🟢 100% Complete |
+| **[Bun Adoption](docs/bun_adoption.md)*** | Bun runtime migration strategy | 🔴 0% Complete |
 
 <sub>*Database: Schema complete, migrations not yet generated via `drizzle-kit generate`</sub>
 <sub>**Deployment: Local Docker setup complete, production CI/CD and monitoring not configured</sub>

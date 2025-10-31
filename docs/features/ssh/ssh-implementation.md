@@ -997,7 +997,7 @@ If issues arise after deployment:
 
 ## Related Documentation
 
-- [SSH Architecture](./SSH_ARCHITECTURE.md)
-- [SSH Database Schema](./SSH_DATABASE.md)
-- [SSH API Design](./SSH_API.md)
+- [SSH Architecture](./SSH_architecture.md)
+- [SSH Database Schema](./SSH_database.md)
+- [SSH API Design](./SSH_api.md)
 - [SSH Security](./SSH_SECURITY.md)
