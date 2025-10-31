@@ -9,7 +9,8 @@ A modern, full-stack web application seed with Next.js, tRPC, Drizzle ORM, WebSo
 - ✅ **Database ORM** with Drizzle (PostgreSQL) - Type-safe database queries and schema management
 - ✅ **Real-time Communication** - WebSocket server for bidirectional messaging
 - ✅ **Background Jobs** - Task queue with BullMQ and Redis
-- ✅ **CLI Client** - Command-line interface for API and WebSocket operations
+- ✅ **Workflow Orchestration** - Temporal for long-running tasks and complex workflows
+- ✅ **CLI Client** - Command-line interface for API, WebSocket, and workflow operations
 - ✅ **Authentication** - Email/password and LDAP authentication support
 - ✅ **Project Management** - Dashboard with project search and permission requests
 
@@ -21,6 +22,7 @@ A modern, full-stack web application seed with Next.js, tRPC, Drizzle ORM, WebSo
 - **Drizzle ORM** - Type-safe PostgreSQL ORM
 - **WebSocket** - Real-time bidirectional communication
 - **BullMQ** - Redis-based task queue
+- **Temporal** - Durable workflow orchestration
 - **PostgreSQL** - Primary database
 - **Redis** - Cache and queue backend
 
@@ -47,7 +49,7 @@ cp .env.example .env
 
 3. Start services:
 ```bash
-# Start PostgreSQL and Redis
+# Start PostgreSQL, Redis, and Temporal
 docker-compose up -d
 
 # Push database schema
@@ -62,11 +64,17 @@ npm run dev
 # Terminal 2 - WebSocket server
 npm run ws:server
 
-# Terminal 3 - Queue worker
+# Terminal 3 - Queue worker (BullMQ)
 npm run queue:worker
+
+# Terminal 4 - Temporal worker
+npm run temporal:worker
 ```
 
 5. Open [http://localhost:3000](http://localhost:3000)
+
+**Additional UIs:**
+- Temporal UI: [http://localhost:8080](http://localhost:8080) - Monitor workflows and task execution
 
 **Default credentials**: username: `root`, password: `Must-Changed`
 
@@ -92,7 +100,8 @@ Comprehensive documentation is available in the `docs/` directory:
 | **[Development Guide](docs/DEVELOPMENT.md)** | Development workflow and adding features | 🟢 100% Complete |
 | **[Deployment Guide](docs/DEPLOYMENT.md)** | Production deployment and scaling | 🟡 60% Complete** |
 | **[WebSocket Guide](docs/WEBSOCKET.md)** | Real-time communication setup | 🟢 100% Complete |
-| **[Task Queue Guide](docs/TASK_QUEUE.md)** | Background job processing | 🟢 100% Complete |
+| **[Task Queue Guide](docs/TASK_QUEUE.md)** | Background job processing (BullMQ) | 🟢 100% Complete |
+| **[Temporal Integration](docs/features/TEMPORAL_TASK_QUEUE.md)** | Workflow orchestration with Temporal | 🟢 100% Complete |
 | **[CLI Guide](docs/CLI.md)** | Command-line interface usage | 🟢 100% Complete |
 | **[SSH Remote Operations](docs/SSH.md)** | SSH operations and remote file management | 🟢 100% Complete |
 | **[Bun Adoption](docs/BUN_ADOPTION.md)*** | Bun runtime migration strategy | 🔴 0% Complete |
@@ -136,16 +145,27 @@ npm run db:studio    # Open Drizzle Studio
 
 ### Services
 ```bash
-npm run ws:server     # Start WebSocket server
-npm run queue:worker  # Start queue worker
+npm run ws:server        # Start WebSocket server
+npm run queue:worker     # Start BullMQ queue worker
+npm run temporal:worker  # Start Temporal worker
 ```
 
 ### CLI
 ```bash
+# User management
 npm run cli user list                              # List all users
 npm run cli user create "John" "john@example.com"  # Create user
+
+# WebSocket
 npm run cli ws listen demo                         # Listen to WebSocket channel
 npm run cli ws send demo "Hello!"                  # Send WebSocket message
+
+# Temporal workflows
+npm run cli task start build -p myproject          # Start build workflow
+npm run cli task status <workflowId>               # Get workflow status
+npm run cli task status <workflowId> -f            # Follow workflow progress
+npm run cli task list                              # List all workflows
+npm run cli task cancel <workflowId>               # Cancel workflow
 ```
 
 ## Project Structure
@@ -162,10 +182,15 @@ lightweight-web-seed/
 │   ├── db/               # Database & schema
 │   ├── trpc/             # tRPC configuration
 │   ├── websocket/        # WebSocket client
-│   └── queue/            # Queue configuration
+│   ├── queue/            # Queue configuration
+│   └── temporal/         # Temporal client & config
 ├── server/                # Server-side code
 │   ├── routers/          # tRPC routers
-│   ├── queue/            # Queue workers
+│   ├── queue/            # BullMQ workers
+│   ├── temporal/         # Temporal workflows & workers
+│   │   ├── workflows/    # Workflow definitions
+│   │   ├── activities/   # Activity implementations
+│   │   └── workers/      # Worker configurations
 │   └── websocket.ts      # WebSocket server
 ├── cli/                   # CLI client
 ├── docs/                  # Documentation
@@ -179,6 +204,8 @@ Required environment variables (see `.env.example`):
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mydb
 REDIS_URL=redis://localhost:6379
+TEMPORAL_ADDRESS=localhost:7233
+TEMPORAL_NAMESPACE=default
 PORT=3000
 WS_PORT=3001
 NODE_ENV=development
