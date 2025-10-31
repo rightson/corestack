@@ -10,15 +10,15 @@ The SSH remote operations system provides transparent, type-safe remote file ope
 
 For developers new to this feature, we recommend reading the documentation in this order:
 
-1. **[Architecture](./ssh/SSH_ARCHITECTURE.md)** - System overview and design goals
-2. **[Database Schema](./ssh/SSH_DATABASE.md)** - Data model and relationships
-3. **[API Design](./ssh/SSH_API.md)** - tRPC endpoints and usage patterns
-4. **[Security](./ssh/SSH_SECURITY.md)** - Security measures and best practices
-5. **[Implementation Plan](./ssh/SSH_IMPLEMENTATION.md)** - Step-by-step implementation guide
+1. **[Architecture](./ssh/ssh-architecture.md)** - System overview and design goals
+2. **[Database Schema](./ssh/ssh-database.md)** - Data model and relationships
+3. **[API Design](./ssh/ssh-api.md)** - tRPC endpoints and usage patterns
+4. **[Security](./ssh/ssh-security.md)** - Security measures and best practices
+5. **[Implementation Plan](./ssh/ssh-implementation.md)** - Step-by-step implementation guide
 
 ## Documentation Index
 
-### 📐 SSH_ARCHITECTURE.md
+### 📐 ssh-architecture.md
 
 **What it covers:**
 
@@ -36,7 +36,7 @@ For developers new to this feature, we recommend reading the documentation in th
 
 ---
 
-### 🗄️ SSH_DATABASE.md
+### 🗄️ ssh-database.md
 
 **What it covers:**
 
@@ -56,7 +56,7 @@ For developers new to this feature, we recommend reading the documentation in th
 
 ---
 
-### 🚀 SSH_API.md
+### 🚀 ssh-api.md
 
 **What it covers:**
 
@@ -76,7 +76,7 @@ For developers new to this feature, we recommend reading the documentation in th
 
 ---
 
-### 🔐 SSH_SECURITY.md
+### 🔐 ssh-security.md
 
 **What it covers:**
 
@@ -97,7 +97,7 @@ For developers new to this feature, we recommend reading the documentation in th
 
 ---
 
-### 📋 SSH_IMPLEMENTATION.md
+### 📋 ssh-implementation.md
 
 **What it covers:**
 
@@ -416,7 +416,7 @@ await trpc.ssh.copy.mutate({
 
 ## Getting Started with Implementation
 
-1. Read [Implementation Plan](./ssh/SSH_IMPLEMENTATION.md)
+1. Read [Implementation Plan](./ssh/ssh-implementation.md)
 2. Install dependencies: `npm install node-ssh ssh2`
 3. Generate encryption key (see implementation plan)
 4. Follow phase-by-phase implementation
@@ -443,8 +443,8 @@ When adding new features:
 ## Questions?
 
 - Check the design documents for detailed information
-- Review code examples in SSH_API.md
-- Consult security guidelines in SSH_SECURITY.md
+- Review code examples in ssh-api.md
+- Consult security guidelines in ssh-security.md
 - Follow implementation plan for step-by-step guidance
 
 ---

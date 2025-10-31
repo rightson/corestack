@@ -42,14 +42,18 @@ This proposal outlines the design and implementation of an interactive managemen
 
 ### Current Pain Points
 
-1. **Multi-Process Complexity**: Developers must manually manage 3 separate terminal sessions:
+1. **Multi-Process Complexity**: Developers must manually manage 5 separate terminal sessions:
+   - Temporal infrastructure (`docker-compose up`)
    - Next.js development server (`npm run dev`)
    - WebSocket server (`npm run ws:server`)
    - Queue workers (`npm run queue:worker`)
+   - Temporal worker (`npm run temporal:worker`)
 
 2. **Platform-Specific Setup**: Installation steps differ across macOS, Ubuntu, and RHEL for:
    - PostgreSQL installation and initialization
    - Redis installation and service management
+   - Docker and Docker Compose installation
+   - Temporal CLI (tctl) installation
    - System dependencies (e.g., build tools, OpenSSL)
 
 3. **Environment Configuration**: Manual `.env` setup is error-prone:
@@ -58,17 +62,20 @@ This proposal outlines the design and implementation of an interactive managemen
    - Weak or default passwords in production-like environments
 
 4. **Inconsistent Onboarding**: New developers face different challenges based on their OS, leading to:
-   - Extended setup time (2-4 hours on average)
+   - Extended setup time (3-5 hours on average)
    - Incomplete installations
+   - Docker and Temporal setup confusion
    - Support burden on experienced team members
 
 ### Proposed Solution
 
 A single, intelligent management utility that:
 - Detects the operating system and adjusts commands accordingly
-- Validates prerequisites before proceeding
+- Validates prerequisites (including Docker and Temporal) before proceeding
+- Manages Temporal infrastructure lifecycle automatically
 - Guides users through configuration with sensible defaults
 - Provides a unified development experience across all platforms
+- Orchestrates all 5 services in a single tmux session
 - Reduces onboarding time to under 30 minutes
 
 ---
@@ -128,6 +135,7 @@ manage.ts (main entry point)
 │   ├── prompter.ts       # Interactive prompts
 │   ├── database.ts       # DB connection and setup
 │   ├── user.ts           # User management operations
+│   ├── docker.ts         # Docker and docker-compose management
 │   └── tmux.ts           # Tmux session management
 ├── config/
 │   ├── prerequisites.ts  # Required versions and tools
@@ -173,10 +181,14 @@ Validate that all required tools and versions are installed before proceeding.
 - Redis CLI (redis-cli) availability
 - Redis version (>= 7.0)
 
-**Optional Requirements:**
+**Required for Development:**
 - tmux (>= 3.0) - required for `dev` command
-- Docker (>= 20.0) - for containerized workflow
+- Docker (>= 20.0) - required for Temporal infrastructure
+- Docker Compose (>= 2.0) - required for Temporal infrastructure
 - Git (>= 2.0) - for version control
+
+**Optional Requirements:**
+- Temporal CLI (tctl) - for advanced Temporal management
 
 **Platform-Specific:**
 - macOS: Xcode Command Line Tools
@@ -194,7 +206,9 @@ Checking Prerequisites...
 ✓ PostgreSQL 15.2 (required: >= 14.0)
 ✓ Redis 7.2.0 (required: >= 7.0)
 ✓ tmux 3.3a (required: >= 3.0)
-⚠ Docker not found (optional - for containerized development)
+✓ Docker 24.0.0 (required: >= 20.0)
+✓ Docker Compose 2.20.0 (required: >= 2.0)
+⚠ Temporal CLI (tctl) not found (optional - for advanced management)
 
 Platform: macOS (arm64)
 ✓ Xcode Command Line Tools installed
@@ -214,6 +228,12 @@ Checking Prerequisites...
 
 ✗ PostgreSQL version 13.5 (required: >= 14.0)
   → Upgrade required. See platform-specific instructions below.
+
+✗ Docker not found
+  → Install via: https://docs.docker.com/engine/install/
+
+✗ Docker Compose not found
+  → Install via: https://docs.docker.com/compose/install/
 
 Platform: Ubuntu 22.04
 ✗ build-essential not installed
@@ -270,6 +290,8 @@ graph TD
    - `ioredis` (Redis client)
    - `bullmq` (queue system)
    - `ws` (WebSocket server)
+   - `@temporalio/worker` (Temporal worker)
+   - `@temporalio/client` (Temporal client)
 3. Run TypeScript compilation check: `tsc --noEmit`
 4. Verify build scripts exist in package.json
 
@@ -289,6 +311,8 @@ Installing Dependencies...
   - ioredis v5.8.1
   - bullmq v5.61.0
   - ws v8.18.3
+  - @temporalio/worker v1.11.6
+  - @temporalio/client v1.11.6
 
 Installation complete! (completed in 42s)
 ```
@@ -394,6 +418,8 @@ Next steps:
 | `NODE_ENV` | `development` | Based on context |
 | `JWT_SECRET` | Auto-generated | `crypto.randomBytes(32).toString('hex')` |
 | `SSH_ENCRYPTION_KEY` | Auto-generated | `crypto.randomBytes(32).toString('hex')` |
+| `TEMPORAL_ADDRESS` | `localhost:7233` | Standard Temporal connection |
+| `TEMPORAL_NAMESPACE` | `default` | Standard Temporal namespace |
 | `LDAP_*` | Commented out | Only if user enables LDAP |
 
 #### Security Features
@@ -835,7 +861,7 @@ export function validatePassword(password: string): void {
 ### 6. Development Server Orchestration (`./manage dev`)
 
 #### Objective
-Start all required development services (Next.js, WebSocket, Queue Workers) in a unified tmux session with easy monitoring and control.
+Start all required development services (Temporal Infrastructure, Next.js, WebSocket, Queue Workers, Temporal Worker) in a unified tmux session with easy monitoring and control.
 
 #### Tmux Layout
 
@@ -845,36 +871,48 @@ Start all required development services (Next.js, WebSocket, Queue Workers) in a
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │ Pane 0: Next.js Dev Server (PORT 3000)               │  │
+│  │ Pane 0: Temporal Infrastructure (Docker)             │  │
+│  │                                                        │  │
+│  │ $ docker-compose up                                    │  │
+│  │ ✓ Temporal Server: localhost:7233                     │  │
+│  │ ✓ Temporal UI: http://localhost:8080                  │  │
+│  │ ✓ PostgreSQL (Temporal): localhost:5432               │  │
+│  │                                                        │  │
+│  └──────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ Pane 1: Next.js Dev Server (PORT 3000)               │  │
 │  │                                                        │  │
 │  │ $ npm run dev                                          │  │
 │  │ ▲ Next.js 15.5.6                                       │  │
 │  │ - Local:   http://localhost:3000                       │  │
-│  │ - Network: http://192.168.1.100:3000                   │  │
 │  │                                                        │  │
-│  │ ✓ Ready in 2.3s                                        │  │
 │  └──────────────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │ Pane 1: WebSocket Server (PORT 3001)                 │  │
+│  │ Pane 2: WebSocket Server (PORT 3001)                 │  │
 │  │                                                        │  │
 │  │ $ npm run ws:server                                    │  │
 │  │ 🔌 WebSocket server started on port 3001              │  │
-│  │ ✓ Health check: PASSED                                │  │
-│  │ 📊 Active connections: 0                               │  │
+│  │                                                        │  │
 │  └──────────────────────────────────────────────────────┘  │
 │  ┌──────────────────────────────────────────────────────┐  │
-│  │ Pane 2: Queue Workers                                 │  │
+│  │ Pane 3: BullMQ Queue Workers                          │  │
 │  │                                                        │  │
 │  │ $ npm run queue:worker                                 │  │
-│  │ 🔄 Queue workers started                               │  │
-│  │ - default: 5 workers ready                             │  │
-│  │ - email: 3 workers ready                               │  │
-│  │ - processing: 5 workers ready                          │  │
-│  │                                                        │  │
+│  │ 🔄 Queue workers started (13 workers ready)           │  │
 │  │ ✓ Connected to Redis at localhost:6379                │  │
+│  │                                                        │  │
+│  └──────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ Pane 4: Temporal Worker                               │  │
+│  │                                                        │  │
+│  │ $ npm run temporal:worker                              │  │
+│  │ ⚡ Temporal worker started                             │  │
+│  │ - Task queue: build-tasks                              │  │
+│  │ ✓ Connected to Temporal at localhost:7233             │  │
+│  │                                                        │  │
 │  └──────────────────────────────────────────────────────┘  │
 │                                                               │
-│ [0: next | 1: websocket | 2: queue]              Press ? for help │
+│ [0: temporal | 1: next | 2: ws | 3: queue | 4: worker]  ? for help │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -889,32 +927,44 @@ Pre-flight checks...
 ✓ node_modules installed
 ✓ PostgreSQL connection verified
 ✓ Redis connection verified
-✓ Ports 3000, 3001 are available
+✓ Docker is running
+✓ Docker Compose is available
+✓ Ports 3000, 3001, 7233, 8080 are available
 ✓ tmux is installed
 
 Initializing tmux session 'lightweight-web-seed'...
 ✓ Session created
 
 Starting services...
-⠋ [1/3] Starting Next.js dev server...
-✓ [1/3] Next.js ready on http://localhost:3000
+⠋ [1/5] Starting Temporal infrastructure (docker-compose)...
+✓ [1/5] Temporal infrastructure ready
+  - Temporal Server: localhost:7233
+  - Temporal UI: http://localhost:8080
 
-⠋ [2/3] Starting WebSocket server...
-✓ [2/3] WebSocket server ready on ws://localhost:3001
+⠋ [2/5] Starting Next.js dev server...
+✓ [2/5] Next.js ready on http://localhost:3000
 
-⠋ [3/3] Starting queue workers...
-✓ [3/3] Queue workers ready (13 workers active)
+⠋ [3/5] Starting WebSocket server...
+✓ [3/5] WebSocket server ready on ws://localhost:3001
+
+⠋ [4/5] Starting BullMQ queue workers...
+✓ [4/5] Queue workers ready (13 workers active)
+
+⠋ [5/5] Starting Temporal worker...
+✓ [5/5] Temporal worker ready (listening on build-tasks)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 🚀 Development environment is ready!
 
 Services:
-  Web UI:       http://localhost:3000
-  WebSocket:    ws://localhost:3001
-  Queue:        13 workers active
-  Database:     PostgreSQL (lightweight_dev)
-  Cache:        Redis (localhost:6379)
+  Web UI:        http://localhost:3000
+  Temporal UI:   http://localhost:8080
+  WebSocket:     ws://localhost:3001
+  BullMQ Queue:  13 workers active
+  Temporal:      Worker active on build-tasks
+  Database:      PostgreSQL (lightweight_dev)
+  Cache:         Redis (localhost:6379)
 
 Tmux session: lightweight-web-seed
 
@@ -933,22 +983,37 @@ Press ENTER to attach to tmux session (or Ctrl+C to exit)...
 **Session Name**: `lightweight-web-seed`
 
 **Pane Configuration**:
-- **Pane 0** (top): Next.js dev server
+- **Pane 0**: Temporal Infrastructure
+  - Command: `docker-compose up`
+  - Purpose: Start Temporal server, UI, and PostgreSQL
+  - Size: 20% of window height
+
+- **Pane 1**: Next.js dev server
   - Command: `npm run dev`
-  - Size: 50% of window height
+  - Purpose: Frontend and API routes
+  - Size: 20% of window height
 
-- **Pane 1** (bottom-left): WebSocket server
+- **Pane 2**: WebSocket server
   - Command: `npm run ws:server`
-  - Size: 25% of window height, 50% of window width
+  - Purpose: Real-time communication
+  - Size: 20% of window height
 
-- **Pane 2** (bottom-right): Queue workers
+- **Pane 3**: BullMQ Queue workers
   - Command: `npm run queue:worker`
-  - Size: 25% of window height, 50% of window width
+  - Purpose: Background job processing (short-lived tasks)
+  - Size: 20% of window height
+
+- **Pane 4**: Temporal worker
+  - Command: `npm run temporal:worker`
+  - Purpose: Long-running workflow execution
+  - Size: 20% of window height
 
 **Key Bindings** (in tmux session):
-- `Ctrl+B` then `0`: Focus Next.js pane
-- `Ctrl+B` then `1`: Focus WebSocket pane
-- `Ctrl+B` then `2`: Focus Queue workers pane
+- `Ctrl+B` then `0`: Focus Temporal infrastructure pane
+- `Ctrl+B` then `1`: Focus Next.js pane
+- `Ctrl+B` then `2`: Focus WebSocket pane
+- `Ctrl+B` then `3`: Focus BullMQ Queue workers pane
+- `Ctrl+B` then `4`: Focus Temporal worker pane
 - `Ctrl+B` then `D`: Detach from session (keeps running)
 - `Ctrl+B` then `[`: Scroll mode (use arrows, PgUp/PgDn)
 - `Ctrl+B` then `?`: Show help
@@ -956,9 +1021,11 @@ Press ENTER to attach to tmux session (or Ctrl+C to exit)...
 #### Service Health Monitoring
 
 **Startup Health Checks**:
-1. **Next.js**: Wait for "Ready in X.Xs" message
-2. **WebSocket**: Wait for "WebSocket server started" message
-3. **Queue Workers**: Wait for "Queue workers started" message
+1. **Temporal Infrastructure**: Wait for "temporal    | Started" in docker-compose logs
+2. **Next.js**: Wait for "Ready in X.Xs" message
+3. **WebSocket**: Wait for "WebSocket server started" message
+4. **BullMQ Queue Workers**: Wait for "Queue workers started" message
+5. **Temporal Worker**: Wait for "Temporal worker started" message
 
 **Continuous Monitoring** (optional):
 ```bash
@@ -966,17 +1033,23 @@ Press ENTER to attach to tmux session (or Ctrl+C to exit)...
 
 Service Status
 ==============
+Docker:       ✓ Running (3 containers)
+  - Temporal Server:   ✓ Running (uptime: 2h 34m)
+  - Temporal UI:       ✓ Running (uptime: 2h 34m)
+  - PostgreSQL:        ✓ Running (uptime: 2h 34m)
 Next.js:      ✓ Running (PID 12345, uptime: 2h 34m)
 WebSocket:    ✓ Running (PID 12346, uptime: 2h 34m)
-Queue:        ✓ Running (PID 12347, uptime: 2h 34m)
+BullMQ:       ✓ Running (PID 12347, uptime: 2h 34m, 13 workers)
+Temporal:     ✓ Running (PID 12348, uptime: 2h 34m, connected)
 
 Connections:
   Database:   ✓ Connected (3 active queries)
   Redis:      ✓ Connected (47 keys)
+  Temporal:   ✓ Connected to localhost:7233
 
 Resources:
-  CPU:        12.3%
-  Memory:     847 MB
+  CPU:        18.7%
+  Memory:     1.2 GB
 ```
 
 #### Lifecycle Management
@@ -987,14 +1060,20 @@ Resources:
 
 Stopping Development Environment
 =================================
-⠋ Stopping Next.js dev server...
-✓ Next.js stopped gracefully
+⠋ Stopping Temporal worker...
+✓ Temporal worker stopped gracefully
+
+⠋ Stopping BullMQ queue workers...
+✓ Queue workers stopped gracefully
 
 ⠋ Stopping WebSocket server...
 ✓ WebSocket server stopped gracefully
 
-⠋ Stopping queue workers...
-✓ Queue workers stopped gracefully
+⠋ Stopping Next.js dev server...
+✓ Next.js stopped gracefully
+
+⠋ Stopping Temporal infrastructure (docker-compose down)...
+✓ Temporal infrastructure stopped
 
 ⠋ Terminating tmux session...
 ✓ Session terminated
@@ -1021,9 +1100,11 @@ Attach: tmux attach -t lightweight-web-seed
 **View Logs**:
 ```bash
 ./manage dev logs                # All services
+./manage dev logs temporal       # Temporal infrastructure
 ./manage dev logs next           # Next.js only
 ./manage dev logs websocket      # WebSocket only
-./manage dev logs queue          # Queue workers only
+./manage dev logs queue          # BullMQ Queue workers only
+./manage dev logs worker         # Temporal worker only
 ./manage dev logs --follow       # Follow logs (tail -f style)
 ```
 
@@ -1038,14 +1119,20 @@ Starting Development Environment (No tmux)
 ==========================================
 
 Starting services in background...
-✓ [1/3] Next.js dev server started (PID 12345)
+✓ [1/5] Temporal infrastructure started (docker-compose)
+  Logs: docker-compose logs -f
+
+✓ [2/5] Next.js dev server started (PID 12345)
   Logs: tail -f logs/next.log
 
-✓ [2/3] WebSocket server started (PID 12346)
+✓ [3/5] WebSocket server started (PID 12346)
   Logs: tail -f logs/websocket.log
 
-✓ [3/3] Queue workers started (PID 12347)
+✓ [4/5] BullMQ queue workers started (PID 12347)
   Logs: tail -f logs/queue.log
+
+✓ [5/5] Temporal worker started (PID 12348)
+  Logs: tail -f logs/temporal-worker.log
 
 Services running. Use './manage dev stop' to stop all services.
 
@@ -1864,6 +1951,8 @@ Options:
 | `LDAP_BIND_PASSWORD` | No | - | LDAP bind password |
 | `LDAP_SEARCH_BASE` | No | - | LDAP search base |
 | `LDAP_USERNAME_ATTRIBUTE` | No | `uid` | LDAP username attribute |
+| `TEMPORAL_ADDRESS` | No | `localhost:7233` | Temporal server address |
+| `TEMPORAL_NAMESPACE` | No | `default` | Temporal namespace |
 
 ### C. Troubleshooting Guide
 

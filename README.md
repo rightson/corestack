@@ -30,10 +30,71 @@ A modern, full-stack web application seed with Next.js, tRPC, Drizzle ORM, WebSo
 
 ### Prerequisites
 - Node.js 18+
+- PostgreSQL 14+
+- Redis 7+
 - Docker and Docker Compose
+- tmux (for manage utility)
 - npm or yarn
 
-### Installation
+### Option 1: Using Manage Utility (Recommended)
+
+The manage utility provides a streamlined development experience by orchestrating all services in a unified tmux session.
+
+1. Clone and setup:
+```bash
+git clone <repository-url>
+cd lightweight-web-seed
+npm install
+```
+
+2. Run the complete setup wizard:
+```bash
+./manage.ts setup
+```
+
+This will:
+- Check prerequisites
+- Install dependencies
+- Initialize environment configuration
+- Setup databases
+- Create an admin user
+
+3. Start all development services:
+```bash
+./manage.ts dev
+```
+
+This single command starts all 5 services in tmux:
+- Temporal infrastructure (Docker)
+- Next.js dev server
+- WebSocket server
+- BullMQ queue workers
+- Temporal worker
+
+4. Access the application:
+- Web UI: [http://localhost:3000](http://localhost:3000)
+- Temporal UI: [http://localhost:8080](http://localhost:8080)
+
+**Manage Utility Commands:**
+```bash
+./manage.ts check          # Verify prerequisites
+./manage.ts init           # Initialize environment
+./manage.ts db-setup       # Setup databases
+./manage.ts createsuperuser # Create admin user
+./manage.ts dev            # Start all services
+./manage.ts dev stop       # Stop all services
+./manage.ts dev status     # Check service status
+./manage.ts dev logs       # View service logs
+```
+
+**tmux Controls:**
+- `Ctrl+B` then `0-4`: Switch between service panes
+- `Ctrl+B` then `D`: Detach (services keep running)
+- `tmux attach -t lightweight-web-seed`: Reattach to session
+
+### Option 2: Manual Setup
+
+If you prefer to manage services individually:
 
 1. Clone and install:
 ```bash
@@ -45,6 +106,7 @@ npm install
 2. Setup environment:
 ```bash
 cp .env.example .env
+# Edit .env with your configuration
 ```
 
 3. Start services:
@@ -56,7 +118,7 @@ docker-compose up -d
 npm run db:push
 ```
 
-4. Run the application:
+4. Run the application (requires 4 terminals):
 ```bash
 # Terminal 1 - Next.js app
 npm run dev
@@ -86,6 +148,7 @@ Comprehensive documentation is available in the `docs/` directory:
 
 | Guide | Description |
 |-------|-------------|
+| **[Manage Utility Design](docs/proposal/INTERACTIVE_MANAGE_UTILITY.md)** | Design proposal for the interactive management utility (planned feature) |
 | **[Codebase Exploration](docs/development/CODEBASE_EXPLORATION_SUMMARY.md)** | Comprehensive overview of the codebase structure, architecture, and key components |
 | **[Local Development Guide](docs/development/LOCAL_DEVELOPMENT_GUIDE.md)** | Step-by-step guide for setting up the project without Docker/Kubernetes |
 
@@ -126,6 +189,21 @@ Each topic has detailed documentation in subfolders:
 - **[docs/cli/](docs/cli/)** - CLI command references
 
 ## Common Commands
+
+### Manage Utility (Recommended)
+```bash
+./manage.ts setup            # Complete setup wizard
+./manage.ts check            # Check prerequisites
+./manage.ts install          # Install dependencies
+./manage.ts init             # Initialize environment
+./manage.ts db-setup         # Setup databases
+./manage.ts createsuperuser  # Create admin user
+./manage.ts dev              # Start all services
+./manage.ts dev stop         # Stop all services
+./manage.ts dev restart      # Restart all services
+./manage.ts dev status       # Check service status
+./manage.ts dev logs [service] # View logs
+```
 
 ### Development
 ```bash
