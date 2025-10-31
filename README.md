@@ -74,6 +74,13 @@ npm run queue:worker
 
 Comprehensive documentation is available in the `docs/` directory:
 
+### Getting Started
+
+| Guide | Description |
+|-------|-------------|
+| **[Codebase Exploration](docs/guides/CODEBASE_EXPLORATION_SUMMARY.md)** | Comprehensive overview of the codebase structure, architecture, and key components |
+| **[Non-Docker Development](docs/development/NON_DOCKER_DEVELOPMENT_GUIDE.md)** | Step-by-step guide for setting up the project without Docker/Kubernetes |
+
 ### Core Guides
 
 | Guide | Description | Implementation Status |
@@ -98,6 +105,7 @@ Comprehensive documentation is available in the `docs/` directory:
 
 Each topic has detailed documentation in subfolders:
 
+- **[docs/guides/](docs/guides/)** - Codebase exploration and overview guides
 - **[docs/architecture/](docs/architecture/)** - Request flows, WebSocket protocol, job processing
 - **[docs/authentication/](docs/authentication/)** - Login verification, LDAP setup guides
 - **[docs/database/](docs/database/)** - Complete schema reference, migration guides
