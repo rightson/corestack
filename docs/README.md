@@ -6,26 +6,27 @@ Welcome to the lightweight-web-seed documentation. This documentation is organiz
 
 ```
 docs/
-├── evaluation/         # Research, proposals, and things being evaluated
-├── features/          # Implemented features and usage guides
-└── architecture/      # System architecture and design decisions
+├── proposal/         # Research, proposals, and things being evaluated
+├── development/      # Dev setup and workflows
+├── features/         # Implemented features and usage guides
+└── architecture/     # System architecture and design decisions
 ```
 
-## 📊 Evaluation
+## 📊 Proposal
 
-**Path:** `evaluation/`
+**Path:** `proposal/`
 
 Documentation for features and technologies being researched, evaluated, or planned. These represent potential future directions that are not yet implemented.
 
 **What you'll find here:**
-- Technology evaluations and comparisons
+- Technology proposals and comparisons
 - Adoption proposals and strategies
 - Performance benchmarks and analysis
 - Decision matrices
 - Migration plans
 
 **Example:**
-- [Bun Adoption](./evaluation/BUN_ADOPTION.md) - Evaluation of Bun runtime for the stack
+- [Bun Adoption](./proposal/BUN_ADOPTION.md) - proposal of Bun runtime for the stack
 
 **When to add docs here:**
 - When researching new technologies
@@ -103,11 +104,11 @@ System-level architecture documentation, design decisions, and technical referen
 
 ### For Contributors
 1. Review [Architecture](./architecture/) to understand the system design
-2. Check [Evaluation](./evaluation/) to see what's being planned
+2. Check [proposal](./proposal/) to see what's being planned
 3. Add new docs in the appropriate category
 
 ### For Evaluators
-1. Check [Evaluation](./evaluation/) for research and proposals
+1. Check [proposal](./proposal/) for research and proposals
 2. Review decision matrices and benchmarks
 3. Provide feedback on proposed changes
 
@@ -117,7 +118,7 @@ System-level architecture documentation, design decisions, and technical referen
 
 ### Choosing the Right Category
 
-**Use `evaluation/` when:**
+**Use `proposal/` when:**
 - The feature/technology is NOT yet implemented
 - You're researching or proposing something new
 - You need to document a decision-making process
@@ -140,23 +141,23 @@ System-level architecture documentation, design decisions, and technical referen
 
 As features progress through their lifecycle:
 
-1. **Research Phase** → `evaluation/`
-   - Create proposal and evaluation docs
+1. **Research Phase** → `proposal/`
+   - Create proposal and proposal docs
 
-2. **Implementation Phase** → Keep in `evaluation/`
+2. **Implementation Phase** → Keep in `proposal/`
    - Update with implementation status
 
 3. **Completed & Deployed** → Move to `features/`
    - Move the doc to `features/`
    - Update references
-   - Archive evaluation docs or update with "Implemented - see features/"
+   - Archive proposal docs or update with "Implemented - see features/"
 
 ### Cross-References
 
 When referencing docs in other categories:
 - From `features/` to `architecture/`: `../architecture/FILE.md`
 - From `architecture/` to `features/`: `../features/FILE.md`
-- From `evaluation/` to other categories: `../features/` or `../architecture/`
+- From `proposal/` to other categories: `../features/` or `../architecture/`
 
 ---
 
@@ -164,7 +165,7 @@ When referencing docs in other categories:
 
 ### Adding New Documentation
 
-1. **Determine the category** - Is it evaluation, feature, or architecture?
+1. **Determine the category** - Is it proposal, feature, or architecture?
 2. **Create the file** in the appropriate directory
 3. **Update this README** if adding a major new section
 4. **Update cross-references** in related documents
@@ -192,7 +193,7 @@ When referencing docs in other categories:
 
 - **For feature usage questions**: Check `features/`
 - **For system design questions**: Check `architecture/`
-- **For proposed changes**: Check `evaluation/`
+- **For proposed changes**: Check `proposal/`
 - **For development setup**: See [Development Guide](./architecture/DEVELOPMENT.md)
 
 ---

@@ -171,7 +171,7 @@ docs/
 │   ├── SSH.md                # (100% complete)
 │   └── Flow diagrams
 ├── features/                 # Implemented feature guides
-└── evaluation/               # Technology research (Bun adoption)
+└── proposal/               # Technology research (Bun adoption)
 ```
 
 ---
