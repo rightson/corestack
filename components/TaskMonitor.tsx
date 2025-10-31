@@ -7,7 +7,7 @@
 'use client';
 
 import { useState } from 'react';
-import { trpc } from '@/lib/trpc/client';
+import { trpc } from '@/lib/trpc/Provider';
 
 interface TaskMonitorProps {
   projectId?: string;
@@ -19,11 +19,11 @@ export function TaskMonitor({ projectId }: TaskMonitorProps) {
 
   // Start build mutation
   const startBuild = trpc.temporal.startBuild.useMutation({
-    onSuccess: (result) => {
+    onSuccess: (result: { workflowId: string; runId: string }) => {
       setWorkflowId(result.workflowId);
       setIsStarting(false);
     },
-    onError: (error) => {
+    onError: (error: unknown) => {
       console.error('Failed to start build:', error);
       setIsStarting(false);
     },
@@ -34,7 +34,7 @@ export function TaskMonitor({ projectId }: TaskMonitorProps) {
     { workflowId: workflowId! },
     {
       enabled: !!workflowId,
-      refetchInterval: (data) => {
+      refetchInterval: (data?: { status: string }) => {
         // Stop polling if workflow is completed, failed, or cancelled
         if (
           data?.status === 'COMPLETED' ||
@@ -205,7 +205,7 @@ export function TaskMonitor({ projectId }: TaskMonitorProps) {
             <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
               <h3 className="font-bold mb-3">Logs</h3>
               <div className="bg-black text-green-400 p-4 rounded font-mono text-xs max-h-64 overflow-y-auto">
-                {status.logs.map((log, index) => (
+                {status.logs.map((log: string, index: number) => (
                   <div key={index} className="mb-1">
                     {log}
                   </div>
@@ -321,7 +321,7 @@ export function WorkflowList() {
         <div className="text-center py-8 text-gray-600">No workflows found</div>
       ) : (
         <div className="space-y-3">
-          {data?.workflows.map((workflow) => (
+          {data?.workflows.map((workflow: { workflowId: string; status: string; type: string; startTime?: string; closeTime?: string; runId: string }) => (
             <div
               key={workflow.workflowId}
               className="border border-gray-300 rounded-lg p-4 hover:bg-gray-50"

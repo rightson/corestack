@@ -357,7 +357,24 @@ taskCmd
       result.workflows.forEach((w) => {
         const statusEmoji = getStatusEmoji(w.status);
         const statusColor = getStatusColor(w.status);
-        const statusText = chalk[statusColor as keyof typeof chalk](w.status.padEnd(12));
+
+        let statusText: string;
+        switch (statusColor) {
+          case 'blue':
+            statusText = chalk.blue(w.status.padEnd(12));
+            break;
+          case 'green':
+            statusText = chalk.green(w.status.padEnd(12));
+            break;
+          case 'red':
+            statusText = chalk.red(w.status.padEnd(12));
+            break;
+          case 'yellow':
+            statusText = chalk.yellow(w.status.padEnd(12));
+            break;
+          default:
+            statusText = chalk.gray(w.status.padEnd(12));
+        }
 
         console.log(`${statusEmoji} ${statusText} ${w.workflowId}`);
         console.log(`  Type: ${w.type}`);

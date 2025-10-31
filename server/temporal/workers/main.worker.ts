@@ -39,7 +39,7 @@ async function runWorker() {
       workflowsPath: path.join(__dirname, '../workflows'),
       activities,
       // Worker configuration
-      maxConcurrentActivityExecutions:
+      maxConcurrentActivityTaskExecutions:
         temporalConfig.worker.maxConcurrentActivityExecutions,
       maxConcurrentWorkflowTaskExecutions:
         temporalConfig.worker.maxConcurrentWorkflowTaskExecutions,

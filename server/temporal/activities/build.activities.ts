@@ -223,8 +223,11 @@ export async function buildProject(input: BuildInput): Promise<BuildResult> {
   try {
     console.log(`[Activity] Building project in ${repoPath} (env: ${environment})`);
 
-    process.env.NODE_ENV = environment;
-    await execAsync('npm run build', { cwd: repoPath });
+    // Set environment variable for the build process
+    await execAsync('npm run build', {
+      cwd: repoPath,
+      env: { ...process.env, NODE_ENV: environment },
+    });
 
     const artifactPath = path.join(repoPath, 'dist');
 

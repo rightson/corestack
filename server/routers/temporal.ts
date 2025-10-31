@@ -75,7 +75,7 @@ export const temporalRouter = router({
         try {
           progress = await handle.query('getProgress');
           logs = await handle.query('getLogs');
-          const status = await handle.query('getStatus');
+          const status = await handle.query('getStatus') as { currentStep: string };
           currentStep = status.currentStep;
         } catch (error) {
           // Queries may fail if workflow is not running
@@ -174,7 +174,7 @@ export const temporalRouter = router({
           results.push({
             workflowId: workflow.workflowId,
             runId: workflow.runId,
-            type: workflow.workflowType,
+            type: workflow.type,
             status: workflow.status.name,
             startTime: workflow.startTime,
             closeTime: workflow.closeTime,
