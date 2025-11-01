@@ -1,6 +1,6 @@
-# Lightweight Web Seed Stack
+# CoreStack
 
-A modern, full-stack web application seed with Next.js, tRPC, Drizzle ORM, WebSocket support, and task queue functionality. Built with TypeScript and designed for both browser and CLI clients.
+A comprehensive, full-stack web application framework with Next.js, tRPC, Drizzle ORM, WebSocket support, workflow orchestration, and task queue functionality. Built with TypeScript and designed for both browser and CLI clients.
 
 ## Features
 
@@ -43,7 +43,7 @@ The manage utility provides a streamlined development experience by orchestratin
 1. Clone and setup:
 ```bash
 git clone <repository-url>
-cd lightweight-web-seed
+cd corestack
 npm install
 ```
 
@@ -90,7 +90,7 @@ This single command starts all 5 services in tmux:
 **tmux Controls:**
 - `Ctrl+B` then `0-4`: Switch between service panes
 - `Ctrl+B` then `D`: Detach (services keep running)
-- `tmux attach -t lightweight-web-seed`: Reattach to session
+- `tmux attach -t corestack`: Reattach to session
 
 ### Option 2: Manual Setup
 
@@ -99,7 +99,7 @@ If you prefer to manage services individually:
 1. Clone and install:
 ```bash
 git clone <repository-url>
-cd lightweight-web-seed
+cd corestack
 npm install
 ```
 
@@ -249,7 +249,7 @@ npm run cli task cancel <workflowId>               # Cancel workflow
 ## Project Structure
 
 ```
-lightweight-web-seed/
+corestack/
 ├── app/                    # Next.js app directory
 │   ├── api/               # API routes (tRPC, queue)
 │   ├── login/            # Login page
