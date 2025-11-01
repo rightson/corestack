@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the design and implementation strategy for adopting Temporal as the task queue system for the lightweight-web-seed stack. Temporal provides a robust, scalable, and observable workflow orchestration platform that excels at managing long-running tasks, complex workflows, and distributed systems.
+This document outlines the design and implementation strategy for adopting Temporal as the task queue system for the corestack stack. Temporal provides a robust, scalable, and observable workflow orchestration platform that excels at managing long-running tasks, complex workflows, and distributed systems.
 
 **Implementation Status**: 🟢 Completed (100% complete)
 
@@ -295,7 +295,7 @@ const result = await client.workflow.execute<BuildWorkflowResult>(
 ### File Structure
 
 ```
-lightweight-web-seed/
+corestack/
 ├── lib/
 │   └── temporal/
 │       ├── client.ts              # Temporal client configuration

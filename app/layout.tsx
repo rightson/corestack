@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lightweight Web Seed",
+  title: "Core Stack",
   description: "Next.js + tRPC + Drizzle + WebSocket + Task Queue",
 };
 

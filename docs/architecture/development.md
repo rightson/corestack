@@ -13,7 +13,7 @@
 ```bash
 # 1. Clone and install
 git clone <repository-url>
-cd lightweight-web-seed
+cd corestack
 npm install
 
 # 2. Configure environment

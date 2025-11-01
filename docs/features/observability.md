@@ -514,7 +514,7 @@ groups:
           severity: critical
         annotations:
           summary: "Service is down"
-          description: "Lightweight web service has been down for more than 1 minute"
+          description: "Core Stack web service has been down for more than 1 minute"
 
       - alert: QueueBacklog
         expr: lightweight_web_queue_jobs_waiting > 1000

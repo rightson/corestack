@@ -2,7 +2,7 @@
 
 ## Overview
 
-This directory contains comprehensive design documentation for the SSH remote operations feature integrated into the lightweight-web-seed stack.
+This directory contains comprehensive design documentation for the SSH remote operations feature integrated into the corestack stack.
 
 The SSH remote operations system provides transparent, type-safe remote file operations via tRPC with connection pooling, automatic retry, error handling, and audit logging.
 

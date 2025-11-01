@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the strategy and considerations for adopting Bun as the JavaScript/TypeScript runtime for the lightweight-web-seed stack. Bun is a modern, fast, all-in-one JavaScript runtime that can significantly improve development experience, build times, and runtime performance.
+This document outlines the strategy and considerations for adopting Bun as the JavaScript/TypeScript runtime for the corestack stack. Bun is a modern, fast, all-in-one JavaScript runtime that can significantly improve development experience, build times, and runtime performance.
 
 **Implementation Status**: 🔴 Not Started (0% complete)
 
