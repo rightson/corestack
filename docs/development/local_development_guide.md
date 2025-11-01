@@ -1,6 +1,6 @@
 # Non-Docker/K8s Development Guide
 
-This guide is designed for developers who want to run the Lightweight Web Seed project locally **without using Docker or Kubernetes**. You'll set up and run all services directly on your development machine.
+This guide is designed for developers who want to run the Core Stack project locally **without using Docker or Kubernetes**. You'll set up and run all services directly on your development machine.
 
 ## Table of Contents
 
@@ -97,7 +97,7 @@ Before you begin, ensure you have the following installed on your local machine:
 
 ```bash
 git clone <repository-url>
-cd lightweight-web-seed
+cd corestack
 ```
 
 ### 2. Install Dependencies
@@ -540,7 +540,7 @@ nano .env
 Understanding the project structure helps with development:
 
 ```
-lightweight-web-seed/
+corestack/
 ├── app/                      # Next.js App Router pages
 │   ├── page.tsx             # Home page
 │   ├── login/               # Login page

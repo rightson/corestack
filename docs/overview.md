@@ -1,6 +1,6 @@
 # Documentation
 
-Welcome to the lightweight-web-seed documentation. This documentation is organized into three main categories to help you find what you need quickly.
+Welcome to the corestack documentation. This documentation is organized into three main categories to help you find what you need quickly.
 
 ## Directory Structure
 

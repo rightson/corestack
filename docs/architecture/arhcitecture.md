@@ -2,7 +2,7 @@
 
 ## Overview
 
-Lightweight Web Seed is a modern full-stack application built with Next.js, featuring type-safe APIs, real-time communication, and background job processing.
+Core Stack is a modern full-stack application built with Next.js, featuring type-safe APIs, real-time communication, and background job processing.
 
 ## System Diagram
 
@@ -80,7 +80,7 @@ Lightweight Web Seed is a modern full-stack application built with Next.js, feat
 ## Project Structure
 
 ```
-lightweight-web-seed/
+corestack/
 ├── app/                    # Next.js app directory
 │   ├── api/               # API routes (tRPC, queue)
 │   ├── login/            # Login page

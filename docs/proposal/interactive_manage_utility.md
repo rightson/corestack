@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-This proposal outlines the design and implementation of an interactive management utility (`manage.ts`) for the lightweight-web-seed project. The utility will provide a unified, cross-platform CLI tool to streamline development workflow by:
+This proposal outlines the design and implementation of an interactive management utility (`manage.ts`) for the corestack project. The utility will provide a unified, cross-platform CLI tool to streamline development workflow by:
 
 - Checking and validating prerequisites across different operating systems
 - Installing and verifying dependencies
@@ -867,7 +867,7 @@ Start all required development services (Temporal Infrastructure, Next.js, WebSo
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Session: lightweight-web-seed                                │
+│ Session: corestack                                │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
 │  ┌──────────────────────────────────────────────────────┐  │
@@ -932,7 +932,7 @@ Pre-flight checks...
 ✓ Ports 3000, 3001, 7233, 8080 are available
 ✓ tmux is installed
 
-Initializing tmux session 'lightweight-web-seed'...
+Initializing tmux session 'corestack'...
 ✓ Session created
 
 Starting services...
@@ -966,10 +966,10 @@ Services:
   Database:      PostgreSQL (lightweight_dev)
   Cache:         Redis (localhost:6379)
 
-Tmux session: lightweight-web-seed
+Tmux session: corestack
 
 Management commands:
-  Attach:       tmux attach -t lightweight-web-seed
+  Attach:       tmux attach -t corestack
   Detach:       Ctrl+B, then D
   Stop all:     ./manage dev stop
   Restart:      ./manage dev restart
@@ -980,7 +980,7 @@ Press ENTER to attach to tmux session (or Ctrl+C to exit)...
 
 #### Tmux Session Management
 
-**Session Name**: `lightweight-web-seed`
+**Session Name**: `corestack`
 
 **Pane Configuration**:
 - **Pane 0**: Temporal Infrastructure
@@ -1094,7 +1094,7 @@ Restarting Development Environment
 ✓ Services started
 
 Development environment restarted!
-Attach: tmux attach -t lightweight-web-seed
+Attach: tmux attach -t corestack
 ```
 
 **View Logs**:
@@ -1476,8 +1476,8 @@ export async function attachSession(name: string): Promise<void> {
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/lightweight-web-seed.git
-cd lightweight-web-seed
+git clone https://github.com/your-org/corestack.git
+cd corestack
 
 # Make manage utility executable
 chmod +x manage.ts
@@ -1981,12 +1981,12 @@ Options:
 
 3. **Tmux Session Conflicts**
    ```
-   Error: Session 'lightweight-web-seed' already exists
+   Error: Session 'corestack' already exists
 
    Solution:
-   1. Attach to existing: tmux attach -t lightweight-web-seed
+   1. Attach to existing: tmux attach -t corestack
    2. Kill existing: ./manage.ts dev stop
-   3. Or: tmux kill-session -t lightweight-web-seed
+   3. Or: tmux kill-session -t corestack
    ```
 
 ### D. Platform-Specific Notes
@@ -2013,7 +2013,7 @@ Options:
 
 ## Conclusion
 
-The interactive management utility will significantly improve the developer experience for lightweight-web-seed by:
+The interactive management utility will significantly improve the developer experience for corestack by:
 
 1. **Reducing Onboarding Time**: From 2-4 hours to under 30 minutes
 2. **Ensuring Consistency**: Same setup process across all platforms

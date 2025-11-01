@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the architecture for remote SSH command execution functionality integrated into the lightweight-web-seed stack. The system provides transparent, type-safe remote file operations via tRPC with connection pooling, error handling, and audit logging.
+This document describes the architecture for remote SSH command execution functionality integrated into the corestack stack. The system provides transparent, type-safe remote file operations via tRPC with connection pooling, error handling, and audit logging.
 
 ## Design Goals
 

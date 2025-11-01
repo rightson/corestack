@@ -1,4 +1,4 @@
-# Lightweight Web Seed - Codebase Exploration Summary
+# Core Stack - Codebase Exploration Summary
 *For Non-Docker/K8s Developers*
 
 ---
@@ -555,7 +555,7 @@ npm run cli ws send <channel> "message"            # Send message
 
 **Step 1: Install Dependencies**
 ```bash
-cd /home/user/lightweight-web-seed
+cd /home/user/corestack
 npm install
 ```
 
