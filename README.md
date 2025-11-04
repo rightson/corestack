@@ -1,6 +1,8 @@
 # CoreStack
 
-A comprehensive, full-stack web application framework with Next.js, tRPC, Drizzle ORM, WebSocket support, workflow orchestration, and task queue functionality. Built with TypeScript and designed for both browser and CLI clients.
+A comprehensive, full-stack web application framework with **React Router 7, Vite, Fastify**, tRPC, Drizzle ORM, WebSocket support, workflow orchestration, and task queue functionality. Built with TypeScript and optimized for complex, data-heavy enterprise dashboards with deep nesting (4+ levels). Designed for both browser and CLI clients.
+
+**🎯 Migration Complete!** This project has been successfully migrated from Next.js 15 to React Router 7 + Vite + Fastify. See [Migration Documentation](docs/proposal/nextjs-to-react-router-migration.md) for details.
 
 ## Features
 
@@ -15,16 +17,26 @@ A comprehensive, full-stack web application framework with Next.js, tRPC, Drizzl
 - ✅ **Project Management** - Dashboard with project search and permission requests
 
 ### Tech Stack
-- **Next.js 15** - React framework with App Router and Turbopack
-- **TypeScript** - Type-safe development
+
+**Frontend:**
+- **React Router 7** - Modern routing with URL state management for complex filters
+- **Vite** - Lightning-fast development and build tool (instant HMR)
+- **React 19** - Latest React features
+- **TanStack Query** - Powerful data fetching and caching
 - **Tailwind CSS** - Utility-first CSS framework
+
+**Backend:**
+- **Fastify** - High-performance web framework for APIs
 - **tRPC** - End-to-end type-safe API
+- **TypeScript** - Type-safe development
 - **Drizzle ORM** - Type-safe PostgreSQL ORM
+- **PostgreSQL** - Primary database
+- **Redis** - Cache and queue backend
+
+**Infrastructure:**
 - **WebSocket** - Real-time bidirectional communication
 - **BullMQ** - Redis-based task queue
 - **Temporal** - Durable workflow orchestration
-- **PostgreSQL** - Primary database
-- **Redis** - Cache and queue backend
 
 ## Quick Start
 
@@ -64,9 +76,10 @@ This will:
 ./manage.ts dev
 ```
 
-This single command starts all 5 services in tmux:
+This single command starts all 6 services in tmux:
 - Temporal infrastructure (Docker)
-- Next.js dev server
+- Vite dev server (frontend)
+- Fastify API server (backend)
 - WebSocket server
 - BullMQ queue workers
 - Temporal worker
@@ -118,18 +131,24 @@ docker-compose up -d
 npm run db:push
 ```
 
-4. Run the application (requires 4 terminals):
+4. Run the application (requires 5 terminals):
 ```bash
-# Terminal 1 - Next.js app
-npm run dev
+# Terminal 1 - Vite dev server (frontend on port 3000)
+npm run dev:vite
 
-# Terminal 2 - WebSocket server
+# Terminal 2 - Fastify API server (backend on port 4000)
+npm run dev:api
+
+# Or use this single command to run both concurrently:
+# npm run dev
+
+# Terminal 3 - WebSocket server
 npm run ws:server
 
-# Terminal 3 - Queue worker (BullMQ)
+# Terminal 4 - Queue worker (BullMQ)
 npm run queue:worker
 
-# Terminal 4 - Temporal worker
+# Terminal 5 - Temporal worker
 npm run temporal:worker
 ```
 
@@ -207,10 +226,16 @@ Each topic has detailed documentation in subfolders:
 
 ### Development
 ```bash
-npm run dev          # Start Next.js development server
-npm run build        # Build for production
+npm run dev          # Start Vite dev + Fastify API (runs both concurrently)
+npm run dev:vite     # Start Vite dev server only
+npm run dev:api      # Start Fastify API server only
+npm run build        # Build for production (client + server)
+npm run build:client # Build Vite client only
+npm run build:server # Build Fastify server only
 npm start            # Start production server
+npm run preview      # Preview production build
 npm run lint         # Run ESLint
+npm run type-check   # Type check TypeScript
 ```
 
 ### Database
@@ -250,29 +275,63 @@ npm run cli task cancel <workflowId>               # Cancel workflow
 
 ```
 corestack/
-├── app/                    # Next.js app directory
-│   ├── api/               # API routes (tRPC, queue)
-│   ├── login/            # Login page
-│   └── projects/         # Projects dashboard
-├── components/            # React components
-├── lib/                   # Shared libraries
-│   ├── auth/             # Authentication
-│   ├── db/               # Database & schema
-│   ├── trpc/             # tRPC configuration
-│   ├── websocket/        # WebSocket client
-│   ├── queue/            # Queue configuration
-│   └── temporal/         # Temporal client & config
-├── server/                # Server-side code
-│   ├── routers/          # tRPC routers
-│   ├── queue/            # BullMQ workers
-│   ├── temporal/         # Temporal workflows & workers
-│   │   ├── workflows/    # Workflow definitions
-│   │   ├── activities/   # Activity implementations
-│   │   └── workers/      # Worker configurations
-│   └── websocket.ts      # WebSocket server
-├── cli/                   # CLI client
-├── docs/                  # Documentation
-└── scripts/               # Utility scripts
+├── src/                    # Frontend source (Vite + React Router 7)
+│   ├── main.tsx           # Entry point
+│   ├── App.tsx            # Root component with providers
+│   ├── routes/            # React Router routes
+│   │   ├── router.tsx     # Route configuration
+│   │   ├── layout.tsx     # Root layout
+│   │   ├── index.tsx      # Home page (redirects)
+│   │   ├── login.tsx      # Login page
+│   │   └── dashboard/     # Dashboard routes (4-level nesting)
+│   │       ├── layout.tsx        # Dashboard shell
+│   │       ├── index.tsx         # Dashboard home
+│   │       ├── projects.tsx      # Projects list (Level 1)
+│   │       └── projects/
+│   │           └── $projectId/   # Project detail (Level 2)
+│   │               ├── index.tsx
+│   │               └── envs/
+│   │                   └── $envId/  # Environment (Level 3-4)
+│   │                       ├── index.tsx
+│   │                       └── metrics.tsx
+│   ├── lib/               # Frontend utilities
+│   │   ├── trpc.tsx      # tRPC client setup
+│   │   └── url-state.ts  # URL state management for filters
+│   └── styles/
+│       └── globals.css
+├── server-fastify/        # Fastify API server
+│   ├── index.ts          # Server entry point
+│   └── plugins/          # Fastify plugins
+│       ├── health.ts     # Health check endpoints
+│       └── metrics.ts    # Prometheus metrics
+├── server/               # Business logic (unchanged)
+│   ├── routers/         # tRPC routers
+│   ├── queue/           # BullMQ workers
+│   ├── temporal/        # Temporal workflows & workers
+│   │   ├── workflows/   # Workflow definitions
+│   │   ├── activities/  # Activity implementations
+│   │   └── workers/     # Worker configurations
+│   └── websocket.ts     # WebSocket server
+├── lib/                  # Shared libraries (unchanged)
+│   ├── auth/            # Authentication
+│   ├── db/              # Database & schema
+│   ├── trpc/            # tRPC core configuration
+│   ├── websocket/       # WebSocket client
+│   ├── queue/           # Queue configuration
+│   └── temporal/        # Temporal client & config
+├── cli/                  # CLI client (unchanged)
+├── docs/                 # Documentation
+│   ├── proposal/        # Migration proposals
+│   │   └── nextjs-to-react-router-migration.md
+│   ├── architecture/    # Architecture docs
+│   ├── features/        # Feature guides
+│   └── development/     # Development guides
+├── public/              # Static assets
+├── index.html           # HTML entry point
+├── vite.config.ts       # Vite configuration
+├── tsconfig.json        # TypeScript config (frontend)
+├── tsconfig.server.json # TypeScript config (backend)
+└── scripts/             # Utility scripts
 ```
 
 ## Environment Variables
