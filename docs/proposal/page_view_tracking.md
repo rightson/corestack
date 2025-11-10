@@ -25,7 +25,7 @@ This proposal outlines the design and implementation of a lightweight, high-perf
 - Click heatmap visualization
 - API endpoint usage analytics
 
-**Technology Stack**: Next.js middleware, Redis streams, BullMQ, tRPC, React with D3.js
+**Technology Stack**: Next.js middleware, Redis streams, BullMQ, Temporal workflows, tRPC, PostgreSQL with time-series partitioning, React with D3.js
 
 ---
 
@@ -147,16 +147,40 @@ This proposal outlines the design and implementation of a lightweight, high-perf
                           │
 ┌─────────────────────────▼─────────────────────────────────┐
 │                  BullMQ Queue Workers                       │
-│  ┌────────────────────┐  ┌────────────────────────────┐   │
-│  │ Event Processor    │  │ Aggregation Worker         │   │
-│  │ - Parse events     │  │ - 1-minute rollups         │   │
-│  │ - Validate data    │  │ - 1-hour rollups           │   │
-│  │ - Write to DB      │  │ - 1-day rollups            │   │
-│  └────────┬───────────┘  └───────────┬────────────────┘   │
-└───────────┼──────────────────────────┼─────────────────────┘
-            │                          │
-            │ Raw Events               │ Aggregated Stats
-            │                          │
+│  ┌────────────────────┐                                    │
+│  │ Event Processor    │  (High-throughput, short-lived)   │
+│  │ - Parse events     │                                    │
+│  │ - Validate data    │                                    │
+│  │ - Write to DB      │                                    │
+│  └────────┬───────────┘                                    │
+└───────────┼─────────────────────────────────────────────────┘
+            │
+            │ Raw Events
+            │
+┌───────────▼──────────────────────────────────────────────┐
+│                Temporal Workflows                          │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │ Analytics Workflows (Long-running, reliable)       │  │
+│  │                                                     │  │
+│  │ 1. Aggregation Workflow (Cron: every 1 min)       │  │
+│  │    - 1-minute rollups                              │  │
+│  │    - 1-hour rollups (every hour)                   │  │
+│  │    - 1-day rollups (daily at midnight)             │  │
+│  │                                                     │  │
+│  │ 2. Data Retention Workflow (Cron: daily)           │  │
+│  │    - Delete expired raw events                     │  │
+│  │    - Drop old partitions                           │  │
+│  │    - Archive to cold storage                       │  │
+│  │                                                     │  │
+│  │ 3. Report Generation Workflow (On-demand)          │  │
+│  │    - Weekly analytics reports                      │  │
+│  │    - Custom date range exports                     │  │
+│  │    - Scheduled email reports                       │  │
+│  └────────┬───────────────────────────────────────────┘  │
+└───────────┼──────────────────────────────────────────────┘
+            │
+            │ Aggregated Stats & Maintenance
+            │
 ┌───────────▼──────────────────────────▼─────────────────────┐
 │                    PostgreSQL Database                       │
 │  ┌──────────────────────────────────────────────────────┐  │
@@ -205,9 +229,64 @@ This proposal outlines the design and implementation of a lightweight, high-perf
 1. **Collection**: Client-side events and server-side middleware capture tracking data
 2. **Ingestion**: Events written to Redis Streams (high-throughput buffer)
 3. **Processing**: BullMQ workers consume events, validate, and persist to PostgreSQL
-4. **Aggregation**: Scheduled workers create time-based rollups (1min, 1hour, 1day)
-5. **Query**: tRPC API serves analytics data to dashboard
-6. **Visualization**: React dashboard displays real-time and historical insights
+4. **Aggregation**: Temporal workflows create time-based rollups (1min, 1hour, 1day) on scheduled cron triggers
+5. **Retention**: Temporal workflows handle data cleanup and partition management
+6. **Query**: tRPC API serves analytics data to dashboard
+7. **Visualization**: React dashboard displays real-time and historical insights
+
+### BullMQ vs Temporal: Division of Responsibilities
+
+The analytics system uses both BullMQ and Temporal, each optimized for different workload characteristics:
+
+#### BullMQ (High-Throughput, Short-Lived Tasks)
+
+**Use Cases:**
+- Real-time event processing (page views, clicks, API calls)
+- Immediate data validation and persistence
+- High-frequency, low-latency operations
+
+**Characteristics:**
+- Handles 10,000+ events per minute
+- Sub-100ms processing time per batch
+- Stateless processing
+- Minimal retry logic (events are best-effort)
+
+**Why BullMQ:**
+- Optimized for high-throughput message processing
+- Lightweight overhead for simple transformations
+- Direct Redis integration for event streams
+- Fast worker startup and shutdown
+
+#### Temporal (Long-Running, Reliable Workflows)
+
+**Use Cases:**
+- Scheduled aggregation jobs (cron-based)
+- Data retention and cleanup workflows
+- Report generation (potentially long-running)
+- Multi-step analytics pipelines
+
+**Characteristics:**
+- Cron schedules (every 1 min, hourly, daily)
+- Built-in retry and error handling
+- Workflow state persistence
+- Long-running operations (minutes to hours)
+
+**Why Temporal:**
+- Reliable execution with automatic retries
+- Durable workflow state (survives restarts)
+- Cron scheduling built-in
+- Visibility into workflow execution history
+- Consistent with rest of corestack architecture
+
+**Example Workflow Schedules:**
+```typescript
+// Temporal cron expressions
+- Aggregation (1-min): "*/1 * * * *"  // Every minute
+- Aggregation (1-hour): "0 * * * *"   // Every hour at :00
+- Aggregation (1-day): "0 0 * * *"    // Daily at midnight
+- Data Retention: "0 2 * * *"         // Daily at 2 AM
+- Weekly Reports: "0 9 * * MON"       // Mondays at 9 AM
+```
 
 ---
 
@@ -675,6 +754,371 @@ async function processBatch(messages: any[]) {
 processEventStream();
 ```
 
+### Temporal Workflows
+
+#### Aggregation Workflow
+
+```typescript
+// server/temporal/workflows/analytics-aggregation.ts
+import { proxyActivities, sleep } from '@temporalio/workflow';
+import type * as activities from '../activities/analytics';
+
+const {
+  aggregateOneMinute,
+  aggregateOneHour,
+  aggregateOneDay
+} = proxyActivities<typeof activities>({
+  startToCloseTimeout: '5 minutes',
+  retry: {
+    initialInterval: '1s',
+    maximumInterval: '60s',
+    maximumAttempts: 5
+  }
+});
+
+/**
+ * 1-Minute Aggregation Workflow
+ * Runs every minute via cron schedule: "*/1 * * * *"
+ */
+export async function minuteAggregationWorkflow(): Promise<void> {
+  const endTime = new Date();
+  const startTime = new Date(endTime.getTime() - 60 * 1000); // Last minute
+
+  await aggregateOneMinute(startTime, endTime);
+}
+
+/**
+ * Hourly Aggregation Workflow
+ * Runs every hour via cron schedule: "0 * * * *"
+ */
+export async function hourlyAggregationWorkflow(): Promise<void> {
+  const endTime = new Date();
+  const startTime = new Date(endTime.getTime() - 60 * 60 * 1000); // Last hour
+
+  await aggregateOneHour(startTime, endTime);
+}
+
+/**
+ * Daily Aggregation Workflow
+ * Runs daily at midnight via cron schedule: "0 0 * * *"
+ */
+export async function dailyAggregationWorkflow(): Promise<void> {
+  const endTime = new Date();
+  endTime.setHours(0, 0, 0, 0); // Start of today
+  const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000); // Yesterday
+
+  await aggregateOneDay(startTime, endTime);
+}
+```
+
+#### Data Retention Workflow
+
+```typescript
+// server/temporal/workflows/analytics-retention.ts
+import { proxyActivities } from '@temporalio/workflow';
+import type * as activities from '../activities/analytics';
+
+const {
+  deleteExpiredEvents,
+  dropOldPartitions,
+  archiveToStorage
+} = proxyActivities<typeof activities>({
+  startToCloseTimeout: '30 minutes',
+  retry: {
+    initialInterval: '5s',
+    maximumInterval: '5m',
+    maximumAttempts: 3
+  }
+});
+
+/**
+ * Data Retention Workflow
+ * Runs daily at 2 AM via cron schedule: "0 2 * * *"
+ */
+export async function dataRetentionWorkflow(
+  retentionDays: number = 90
+): Promise<{ deletedEvents: number; droppedPartitions: number }> {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+  // Step 1: Archive old data to cold storage (optional)
+  await archiveToStorage(cutoffDate);
+
+  // Step 2: Delete expired events from raw tables
+  const deletedEvents = await deleteExpiredEvents(cutoffDate);
+
+  // Step 3: Drop old partitions (PostgreSQL partitions)
+  const droppedPartitions = await dropOldPartitions(cutoffDate);
+
+  return { deletedEvents, droppedPartitions };
+}
+```
+
+#### Temporal Activities
+
+```typescript
+// server/temporal/activities/analytics.ts
+import { db } from '@/lib/db';
+import {
+  pageViews,
+  clickEvents,
+  apiCalls,
+  analytics1min,
+  analytics1hour,
+  analytics1day
+} from '@/lib/db/schema';
+import { sql, and, gte, lt, lte } from 'drizzle-orm';
+
+/**
+ * Aggregate page views into 1-minute buckets
+ */
+export async function aggregateOneMinute(
+  startTime: Date,
+  endTime: Date
+): Promise<void> {
+  await db.insert(analytics1min)
+    .select(
+      db.select({
+        id: sql`gen_random_uuid()`,
+        timestamp: sql`date_trunc('minute', ${pageViews.timestamp})`,
+        route: pageViews.route,
+        pageViews: sql<number>`count(*)`,
+        uniqueVisitors: sql<number>`count(distinct ${pageViews.sessionId})`,
+        avgLoadTime: sql<number>`avg(${pageViews.loadTime})`,
+        createdAt: sql`now()`
+      })
+      .from(pageViews)
+      .where(
+        and(
+          gte(pageViews.timestamp, startTime),
+          lt(pageViews.timestamp, endTime)
+        )
+      )
+      .groupBy(sql`date_trunc('minute', ${pageViews.timestamp})`, pageViews.route)
+    );
+}
+
+/**
+ * Aggregate page views into 1-hour buckets
+ */
+export async function aggregateOneHour(
+  startTime: Date,
+  endTime: Date
+): Promise<void> {
+  await db.insert(analytics1hour)
+    .select(
+      db.select({
+        id: sql`gen_random_uuid()`,
+        timestamp: sql`date_trunc('hour', ${pageViews.timestamp})`,
+        route: pageViews.route,
+        pageViews: sql<number>`count(*)`,
+        uniqueVisitors: sql<number>`count(distinct ${pageViews.sessionId})`,
+        avgLoadTime: sql<number>`avg(${pageViews.loadTime})`,
+        createdAt: sql`now()`
+      })
+      .from(pageViews)
+      .where(
+        and(
+          gte(pageViews.timestamp, startTime),
+          lt(pageViews.timestamp, endTime)
+        )
+      )
+      .groupBy(sql`date_trunc('hour', ${pageViews.timestamp})`, pageViews.route)
+    );
+}
+
+/**
+ * Aggregate page views into 1-day buckets
+ */
+export async function aggregateOneDay(
+  startTime: Date,
+  endTime: Date
+): Promise<void> {
+  await db.insert(analytics1day)
+    .select(
+      db.select({
+        id: sql`gen_random_uuid()`,
+        date: sql`date_trunc('day', ${pageViews.timestamp})`,
+        route: pageViews.route,
+        pageViews: sql<number>`count(*)`,
+        uniqueVisitors: sql<number>`count(distinct ${pageViews.sessionId})`,
+        avgLoadTime: sql<number>`avg(${pageViews.loadTime})`,
+        createdAt: sql`now()`
+      })
+      .from(pageViews)
+      .where(
+        and(
+          gte(pageViews.timestamp, startTime),
+          lt(pageViews.timestamp, endTime)
+        )
+      )
+      .groupBy(sql`date_trunc('day', ${pageViews.timestamp})`, pageViews.route)
+    );
+}
+
+/**
+ * Delete expired events older than cutoff date
+ */
+export async function deleteExpiredEvents(cutoffDate: Date): Promise<number> {
+  const pageViewsResult = await db.delete(pageViews)
+    .where(lte(pageViews.timestamp, cutoffDate));
+
+  const clickEventsResult = await db.delete(clickEvents)
+    .where(lte(clickEvents.timestamp, cutoffDate));
+
+  const apiCallsResult = await db.delete(apiCalls)
+    .where(lte(apiCalls.timestamp, cutoffDate));
+
+  return (pageViewsResult.rowCount || 0) +
+         (clickEventsResult.rowCount || 0) +
+         (apiCallsResult.rowCount || 0);
+}
+
+/**
+ * Drop old PostgreSQL partitions
+ */
+export async function dropOldPartitions(cutoffDate: Date): Promise<number> {
+  // Get list of partitions older than cutoff
+  const partitions = await db.execute(sql`
+    SELECT tablename
+    FROM pg_tables
+    WHERE schemaname = 'public'
+      AND tablename LIKE 'page_views_%'
+      AND tablename < ${`page_views_${cutoffDate.toISOString().split('T')[0].replace(/-/g, '_')}`}
+  `);
+
+  let dropped = 0;
+  for (const partition of partitions.rows) {
+    await db.execute(sql`DROP TABLE IF EXISTS ${sql.identifier(partition.tablename)}`);
+    dropped++;
+  }
+
+  return dropped;
+}
+
+/**
+ * Archive old data to cold storage (S3, etc.)
+ */
+export async function archiveToStorage(cutoffDate: Date): Promise<void> {
+  // Implementation depends on storage backend
+  // Example: Export to S3, then delete from primary DB
+  // This is a placeholder for future implementation
+  console.log(`Archiving data older than ${cutoffDate.toISOString()}`);
+}
+```
+
+#### Workflow Registration
+
+```typescript
+// server/temporal/worker.ts
+import { Worker } from '@temporalio/worker';
+import * as activities from './activities/analytics';
+import {
+  minuteAggregationWorkflow,
+  hourlyAggregationWorkflow,
+  dailyAggregationWorkflow,
+  dataRetentionWorkflow
+} from './workflows/analytics-aggregation';
+
+async function run() {
+  const worker = await Worker.create({
+    workflowsPath: require.resolve('./workflows'),
+    activities,
+    taskQueue: 'analytics-tasks',
+  });
+
+  await worker.run();
+}
+
+run().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
+```
+
+#### Scheduling Workflows
+
+```typescript
+// server/temporal/schedules.ts
+import { Client, ScheduleOverlapPolicy } from '@temporalio/client';
+
+const client = new Client({
+  namespace: process.env.TEMPORAL_NAMESPACE || 'default',
+});
+
+/**
+ * Create or update analytics workflow schedules
+ */
+export async function setupAnalyticsSchedules() {
+  // 1-minute aggregation schedule
+  await client.schedule.create({
+    scheduleId: 'analytics-1min-aggregation',
+    spec: {
+      cronExpressions: ['*/1 * * * *'], // Every minute
+    },
+    action: {
+      type: 'startWorkflow',
+      workflowType: 'minuteAggregationWorkflow',
+      taskQueue: 'analytics-tasks',
+    },
+    policies: {
+      overlap: ScheduleOverlapPolicy.SKIP, // Skip if previous run still active
+    },
+  });
+
+  // Hourly aggregation schedule
+  await client.schedule.create({
+    scheduleId: 'analytics-1hour-aggregation',
+    spec: {
+      cronExpressions: ['0 * * * *'], // Every hour at :00
+    },
+    action: {
+      type: 'startWorkflow',
+      workflowType: 'hourlyAggregationWorkflow',
+      taskQueue: 'analytics-tasks',
+    },
+    policies: {
+      overlap: ScheduleOverlapPolicy.SKIP,
+    },
+  });
+
+  // Daily aggregation schedule
+  await client.schedule.create({
+    scheduleId: 'analytics-1day-aggregation',
+    spec: {
+      cronExpressions: ['0 0 * * *'], // Daily at midnight
+    },
+    action: {
+      type: 'startWorkflow',
+      workflowType: 'dailyAggregationWorkflow',
+      taskQueue: 'analytics-tasks',
+    },
+    policies: {
+      overlap: ScheduleOverlapPolicy.SKIP,
+    },
+  });
+
+  // Data retention schedule
+  await client.schedule.create({
+    scheduleId: 'analytics-data-retention',
+    spec: {
+      cronExpressions: ['0 2 * * *'], // Daily at 2 AM
+    },
+    action: {
+      type: 'startWorkflow',
+      workflowType: 'dataRetentionWorkflow',
+      taskQueue: 'analytics-tasks',
+      args: [90], // 90 days retention
+    },
+    policies: {
+      overlap: ScheduleOverlapPolicy.SKIP,
+    },
+  });
+
+  console.log('Analytics schedules created successfully');
+}
+```
+
 ### tRPC Analytics API
 
 ```typescript
@@ -1041,16 +1485,22 @@ CREATE TABLE page_views_2025_11_09 PARTITION OF page_views
 - `server/queue/workers/analytics-processor.ts`
 - `lib/analytics/session.ts`
 
-### Phase 3: Analytics API (Weeks 5-6)
+### Phase 3: Temporal Workflows & Analytics API (Weeks 5-6)
 **Deliverables:**
+- Temporal workflows for aggregation (1min, 1hour, 1day rollups)
+- Temporal activities for data processing
+- Workflow schedules (cron-based)
+- Data retention workflow
 - tRPC analytics router
-- Aggregation workers (1min, 1hour, 1day rollups)
 - Query optimization
 - Live stats (Redis-backed)
 
 **Files:**
+- `server/temporal/workflows/analytics-aggregation.ts`
+- `server/temporal/workflows/analytics-retention.ts`
+- `server/temporal/activities/analytics.ts`
+- `server/temporal/schedules.ts`
 - `server/api/routers/analytics.ts`
-- `server/queue/workers/analytics-aggregator.ts`
 - `lib/analytics/queries.ts`
 
 ### Phase 4: Dashboard UI (Weeks 7-8)
@@ -1135,10 +1585,12 @@ CREATE TABLE page_views_2025_11_09 PARTITION OF page_views
    - Bulk database inserts
    - Reduce transaction overhead
 
-3. **Aggregation Layers**
-   - Pre-compute 1min, 1hour, 1day rollups
+3. **Aggregation Layers (Temporal Workflows)**
+   - Pre-compute 1min, 1hour, 1day rollups using Temporal cron schedules
    - Query aggregates instead of raw data for dashboards
    - Reduce query complexity and execution time
+   - Reliable execution with automatic retries
+   - Workflow visibility via Temporal UI for monitoring and debugging
 
 4. **Indexing Strategy**
    - Composite indexes on (timestamp, route)
