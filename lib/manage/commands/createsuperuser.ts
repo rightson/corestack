@@ -118,7 +118,7 @@ export async function createSuperuserCommand(options: CreateSuperuserOptions = {
         name: 'passwordConfirm',
         message: 'Password (again):',
         mask: '•',
-        validate: (input: string, answers?: { password?: string }) => {
+        validate: (input: string, answers?: any) => {
           return input === answers?.password || 'Passwords do not match';
         },
       },
