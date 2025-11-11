@@ -26,10 +26,11 @@ export function execCommand(
       success: true,
     };
   } catch (error: unknown) {
+    const err = error as { stdout?: Buffer; stderr?: Buffer; status?: number };
     return {
-      stdout: error.stdout?.toString() || '',
-      stderr: error.stderr?.toString() || '',
-      exitCode: error.status || 1,
+      stdout: err.stdout?.toString() || '',
+      stderr: err.stderr?.toString() || '',
+      exitCode: err.status || 1,
       success: false,
     };
   }
@@ -50,10 +51,11 @@ export function execCommandQuiet(command: string, cwd?: string): ExecResult {
       success: true,
     };
   } catch (error: unknown) {
+    const err = error as { stdout?: Buffer; stderr?: Buffer; status?: number };
     return {
-      stdout: error.stdout?.toString().trim() || '',
-      stderr: error.stderr?.toString().trim() || '',
-      exitCode: error.status || 1,
+      stdout: err.stdout?.toString().trim() || '',
+      stderr: err.stderr?.toString().trim() || '',
+      exitCode: err.status || 1,
       success: false,
     };
   }
@@ -65,24 +67,24 @@ export async function spawnCommand(
   options?: SpawnOptions
 ): Promise<ExecResult> {
   return new Promise((resolve) => {
-    const child = spawn(command, args, options);
+    const child = spawn(command, args, options || {});
 
     let stdout = '';
     let stderr = '';
 
     if (child.stdout) {
-      child.stdout.on('data', (data) => {
+      child.stdout.on('data', (data: Buffer) => {
         stdout += data.toString();
       });
     }
 
     if (child.stderr) {
-      child.stderr.on('data', (data) => {
+      child.stderr.on('data', (data: Buffer) => {
         stderr += data.toString();
       });
     }
 
-    child.on('close', (code) => {
+    child.on('close', (code: number | null) => {
       resolve({
         stdout,
         stderr,
@@ -91,10 +93,10 @@ export async function spawnCommand(
       });
     });
 
-    child.on('error', (error) => {
+    child.on('error', (error: Error) => {
       resolve({
         stdout,
-        stderr: (error as Error).message,
+        stderr: error.message,
         exitCode: 1,
         success: false,
       });

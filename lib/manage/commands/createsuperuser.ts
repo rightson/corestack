@@ -151,6 +151,13 @@ export async function createSuperuserCommand(options: CreateSuperuserOptions = {
     process.exit(1);
   }
 
+  // Assert that username, email, and password are defined at this point
+  if (!username || !email || !password) {
+    logger.error('Username, email, or password is missing');
+    await sql.end();
+    process.exit(1);
+  }
+
   const spinner = ora('Creating superuser account...').start();
 
   try {
@@ -177,15 +184,15 @@ export async function createSuperuserCommand(options: CreateSuperuserOptions = {
     }
 
     // Hash password
-    const passwordHash = await bcrypt.hash(password!, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
 
     // Create user
     await sql`
       INSERT INTO users (username, name, email, password_hash, auth_type, role, created_at, updated_at)
       VALUES (
-        ${username!.toLowerCase()},
+        ${username.toLowerCase()},
         ${username},
-        ${email!.toLowerCase()},
+        ${email.toLowerCase()},
         ${passwordHash},
         'email',
         'admin',
