@@ -42,6 +42,13 @@ import {
   removeProjectFromGroup,
   getGroupProjects,
   getUserGroups,
+  // Impersonation Service
+  isSuperAdmin,
+  startImpersonation,
+  endImpersonation,
+  getAdminActiveSessions,
+  getImpersonationHistory,
+  canImpersonate,
 } from '@/lib/rbac';
 
 // ===== Input Schemas =====
@@ -376,6 +383,91 @@ export const rbacRouter = router({
     getMyGroups: protectedProcedure
       .query(async ({ ctx }) => {
         return await getUserGroups(ctx.user.userId);
+      }),
+  }),
+
+  // ===== Impersonation =====
+  impersonation: router({
+    // Check if current user is a super admin
+    isSuperAdmin: protectedProcedure
+      .query(async ({ ctx }) => {
+        return await isSuperAdmin(ctx.user.userId);
+      }),
+
+    // Check if current user can impersonate a target user
+    canImpersonate: protectedProcedure
+      .input(z.object({ targetUserId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        return await canImpersonate(ctx.user.userId, input.targetUserId);
+      }),
+
+    // Start impersonation session (super admin only)
+    start: protectedProcedure
+      .input(z.object({
+        targetUserId: z.number(),
+        reason: z.string().optional(),
+        durationMs: z.number().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Check if user is super admin
+        const isAdmin = await isSuperAdmin(ctx.user.userId);
+        if (!isAdmin) {
+          throw new Error('Only super admins can start impersonation sessions');
+        }
+
+        // Extract request metadata
+        const ipAddress = undefined; // Would need to be extracted from request
+        const userAgent = undefined; // Would need to be extracted from request
+
+        const session = await startImpersonation({
+          adminUserId: ctx.user.userId,
+          impersonatedUserId: input.targetUserId,
+          reason: input.reason,
+          ipAddress,
+          userAgent,
+          durationMs: input.durationMs,
+        });
+
+        if (!session) {
+          throw new Error('Failed to start impersonation session');
+        }
+
+        return {
+          sessionToken: session.sessionToken,
+          expiresAt: session.expiresAt,
+          impersonatedUserId: session.impersonatedUserId,
+        };
+      }),
+
+    // End impersonation session
+    end: protectedProcedure
+      .input(z.object({ sessionToken: z.string() }))
+      .mutation(async ({ input }) => {
+        const success = await endImpersonation(input.sessionToken);
+        return { success };
+      }),
+
+    // Get active sessions for current admin
+    getActiveSessions: protectedProcedure
+      .query(async ({ ctx }) => {
+        return await getAdminActiveSessions(ctx.user.userId);
+      }),
+
+    // Get impersonation history
+    getHistory: protectedProcedure
+      .input(z.object({
+        adminUserId: z.number().optional(),
+        impersonatedUserId: z.number().optional(),
+        limit: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        return await getImpersonationHistory(input);
+      }),
+
+    // Get current impersonation status
+    getStatus: protectedProcedure
+      .query(async ({ ctx }) => {
+        return ctx.impersonation;
       }),
   }),
 });

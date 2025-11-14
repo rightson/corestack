@@ -11,8 +11,14 @@ import {
   assignPermissionsToRole,
   getRoleByName,
   getPermissionByName,
+  createGroup,
+  getGroupById,
+  SUPER_ADMIN_GROUP_NAME,
 } from '@/lib/rbac';
 import { createLogger } from '@/lib/observability/logger';
+import { db } from '@/lib/db';
+import { groups } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 const logger = createLogger({ service: 'rbac-seed' });
 
@@ -265,14 +271,46 @@ async function seedRBAC() {
       }
     }
 
+    // 4. Create super admin group
+    console.log('\nCreating super admin group...');
+
+    try {
+      // Check if super admin group already exists
+      const [existingGroup] = await db
+        .select()
+        .from(groups)
+        .where(eq(groups.name, SUPER_ADMIN_GROUP_NAME))
+        .limit(1);
+
+      if (existingGroup) {
+        console.log(`  ✓ Super admin group "${SUPER_ADMIN_GROUP_NAME}" already exists`);
+      } else {
+        const superAdminGroup = await createGroup({
+          name: SUPER_ADMIN_GROUP_NAME,
+          description: 'Special group for super administrators with impersonation capabilities',
+          groupType: 'functional',
+          metadata: {
+            isSpecial: true,
+            capabilities: ['impersonation', 'full-access'],
+          },
+        });
+
+        console.log(`  ✓ Created super admin group: ${SUPER_ADMIN_GROUP_NAME} (ID: ${superAdminGroup.id})`);
+      }
+    } catch (error: any) {
+      console.error(`  ✗ Failed to create super admin group:`, error.message);
+    }
+
     console.log('\n✅ RBAC seed completed successfully!\n');
     console.log('Summary:');
     console.log(`  - ${Object.keys(createdPermissions).length} permissions`);
     console.log(`  - ${Object.keys(createdRoles).length} roles`);
+    console.log(`  - 1 special group (${SUPER_ADMIN_GROUP_NAME})`);
     console.log('\nNext steps:');
     console.log('  1. Assign system_admin role to your admin user');
-    console.log('  2. Assign project roles to project members');
-    console.log('  3. Create custom roles and permissions as needed\n');
+    console.log('  2. Add admin users to the super_admins group for impersonation capability');
+    console.log('  3. Assign project roles to project members');
+    console.log('  4. Create custom roles and permissions as needed\n');
 
   } catch (error) {
     console.error('❌ RBAC seed failed:', error);

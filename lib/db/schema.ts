@@ -288,3 +288,18 @@ export const permissionCache = pgTable('permission_cache', {
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// Impersonation sessions (for admin user switching)
+export const impersonationSessions = pgTable('impersonation_sessions', {
+  id: serial('id').primaryKey(),
+  adminUserId: integer('admin_user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(), // The admin who is impersonating
+  impersonatedUserId: integer('impersonated_user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(), // The user being impersonated
+  sessionToken: varchar('session_token', { length: 255 }).notNull().unique(), // Unique token for this impersonation session
+  reason: text('reason'), // Optional reason for impersonation (audit purposes)
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull(), // Impersonation session expiry
+  endedAt: timestamp('ended_at'), // When the impersonation session ended
+});

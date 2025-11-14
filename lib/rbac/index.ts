@@ -75,3 +75,16 @@ export {
   logRoleAssigned,
   logRoleRevoked,
 } from './audit-service';
+
+// Impersonation Service
+export {
+  isSuperAdmin,
+  startImpersonation,
+  endImpersonation,
+  getImpersonationSession,
+  getAdminActiveSessions,
+  getImpersonationHistory,
+  canImpersonate,
+  SUPER_ADMIN_GROUP_NAME,
+} from './impersonation-service';
+export type { ImpersonationSession, StartImpersonationInput } from './impersonation-service';
