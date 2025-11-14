@@ -29,68 +29,72 @@ A comprehensive, full-stack web application framework with Next.js, tRPC, Drizzl
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- PostgreSQL 14+
-- Redis 7+
-- Docker and Docker Compose
-- tmux (for manage utility)
-- npm or yarn
 
-### Option 1: Using Manage Utility (Recommended)
+**Minimum Requirements:**
+- Node.js 18+ (preferably 20+)
+- npm 9+
 
-The manage utility provides a streamlined development experience by orchestrating all services in a unified tmux session.
+**Optional (Auto-detected):**
+- Docker & Docker Compose (recommended for services)
+- tmux 3+ (for unified service management)
 
-1. Clone and setup:
+### Option 1: Automated Setup (Recommended)
+
+The fastest way to get started - one command does everything:
+
 ```bash
+# Clone the repository
 git clone <repository-url>
 cd corestack
-npm install
+
+# Initialize (auto-detects Docker, sets up everything)
+./init.sh
+
+# Start all services
+./run.sh
 ```
 
-2. Run the complete setup wizard:
-```bash
-./manage.ts setup
-```
+**What `./init.sh` does:**
+- ✅ Detects your OS (Linux/MacOS)
+- ✅ Checks Node.js and npm versions
+- ✅ Installs dependencies
+- ✅ Generates secure environment variables
+- ✅ Starts Docker services (PostgreSQL, Redis, Temporal)
+- ✅ Runs database migrations
+- ✅ Seeds initial data (creates admin user)
 
-This will:
-- Check prerequisites
-- Install dependencies
-- Initialize environment configuration
-- Setup databases
-- Create an admin user
+**What `./run.sh` does:**
+- ✅ Starts all Node.js services in tmux (if available)
+- ✅ Manages 4 service windows: Next.js, WebSocket, Queue Worker, Temporal Worker
+- ✅ Provides easy window switching with `Ctrl+B` + number keys
 
-3. Start all development services:
-```bash
-./manage.ts dev
-```
-
-This single command starts all 5 services in tmux:
-- Temporal infrastructure (Docker)
-- Next.js dev server
-- WebSocket server
-- BullMQ queue workers
-- Temporal worker
-
-4. Access the application:
+**Access the application:**
 - Web UI: [http://localhost:3000](http://localhost:3000)
 - Temporal UI: [http://localhost:8080](http://localhost:8080)
 
-**Manage Utility Commands:**
+**Default credentials:** username: `root`, password: `Must-Changed`
+⚠️ **Change the password after first login!**
+
+**Advanced init options:**
 ```bash
-./manage.ts check          # Verify prerequisites
-./manage.ts init           # Initialize environment
-./manage.ts db-setup       # Setup databases
-./manage.ts createsuperuser # Create admin user
-./manage.ts dev            # Start all services
-./manage.ts dev stop       # Stop all services
-./manage.ts dev status     # Check service status
-./manage.ts dev logs       # View service logs
+./init.sh --docker          # Force Docker mode
+./init.sh --no-docker       # Use local services
+./init.sh --offline         # Offline/on-prem mode (uses npm cache)
+./init.sh --help            # Show all options
+```
+
+**Advanced run options:**
+```bash
+./run.sh --tmux             # Use tmux (recommended)
+./run.sh --no-tmux          # Foreground mode
+./run.sh --help             # Show all options
 ```
 
 **tmux Controls:**
-- `Ctrl+B` then `0-4`: Switch between service panes
+- `Ctrl+B` then `0-3`: Switch between service windows
 - `Ctrl+B` then `D`: Detach (services keep running)
 - `tmux attach -t corestack`: Reattach to session
+- `tmux kill-session -t corestack`: Stop all services
 
 ### Option 2: Manual Setup
 
@@ -107,15 +111,21 @@ npm install
 ```bash
 cp .env.example .env
 # Edit .env with your configuration
+# Generate secrets:
+#   JWT_SECRET: openssl rand -base64 32
+#   SSH_ENCRYPTION_KEY: openssl rand -base64 32
 ```
 
 3. Start services:
 ```bash
 # Start PostgreSQL, Redis, and Temporal
-docker-compose up -d
+docker compose up -d
 
-# Push database schema
-npm run db:push
+# Run database migrations
+npm run db:migrate
+
+# Seed database
+npm run db:seed
 ```
 
 4. Run the application (requires 4 terminals):
@@ -148,9 +158,10 @@ Comprehensive documentation is available in the `docs/` directory:
 
 | Guide | Description |
 |-------|-------------|
-| **[Manage Utility Design](docs/proposal/interactive_manage_utility.md)** | Design proposal for the interactive management utility (planned feature) |
+| **[Quick Start Guide](docs/quick_start.md)** | Fast setup for Linux/MacOS, with/without Docker, online/offline environments |
 | **[Codebase Exploration](docs/development/codebase_exploration_summary.md)** | Comprehensive overview of the codebase structure, architecture, and key components |
 | **[Local Development Guide](docs/development/local_development_guide.md)** | Step-by-step guide for setting up the project without Docker/Kubernetes |
+| **[Manage Utility Design](docs/proposal/interactive_manage_utility.md)** | Design proposal for the interactive management utility (planned feature) |
 
 ### Core Guides
 
@@ -190,19 +201,16 @@ Each topic has detailed documentation in subfolders:
 
 ## Common Commands
 
-### Manage Utility (Recommended)
+### Quick Start (Recommended)
 ```bash
-./manage.ts setup            # Complete setup wizard
-./manage.ts check            # Check prerequisites
-./manage.ts install          # Install dependencies
-./manage.ts init             # Initialize environment
-./manage.ts db-setup         # Setup databases
-./manage.ts createsuperuser  # Create admin user
-./manage.ts dev              # Start all services
-./manage.ts dev stop         # Stop all services
-./manage.ts dev restart      # Restart all services
-./manage.ts dev status       # Check service status
-./manage.ts dev logs [service] # View logs
+./init.sh            # Initialize project (auto-detects Docker)
+./init.sh --help     # Show all initialization options
+./run.sh             # Start all services (auto-detects tmux)
+./run.sh --help      # Show all run options
+
+# Or use npm scripts
+npm run init         # Same as ./init.sh
+npm run run          # Same as ./run.sh
 ```
 
 ### Development
@@ -211,17 +219,26 @@ npm run dev          # Start Next.js development server
 npm run build        # Build for production
 npm start            # Start production server
 npm run lint         # Run ESLint
+npm run type-check   # TypeScript validation
 ```
 
 ### Database
 ```bash
-npm run db:push      # Push schema to database (development)
+npm run db:migrate   # Run migrations
+npm run db:seed      # Seed initial data
 npm run db:generate  # Generate migrations
-npm run db:migrate   # Run migrations (production)
+npm run db:push      # Push schema to database (development)
 npm run db:studio    # Open Drizzle Studio
 ```
 
-### Services
+### Docker Services
+```bash
+npm run docker:up    # Start Docker services
+npm run docker:down  # Stop Docker services
+npm run docker:logs  # View Docker logs
+```
+
+### Individual Services
 ```bash
 npm run ws:server        # Start WebSocket server
 npm run queue:worker     # Start BullMQ queue worker
