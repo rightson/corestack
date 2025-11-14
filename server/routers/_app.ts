@@ -6,6 +6,7 @@ import { projectRouter } from './project';
 import { sshConfigRouter } from './ssh-config';
 import { sshRouter } from './ssh';
 import { temporalRouter } from './temporal';
+import { rbacRouter } from './rbac';
 
 export const appRouter = router({
   user: userRouter,
@@ -15,6 +16,7 @@ export const appRouter = router({
   sshConfig: sshConfigRouter,
   ssh: sshRouter,
   temporal: temporalRouter,
+  rbac: rbacRouter,
 });
 
 export type AppRouter = typeof appRouter;

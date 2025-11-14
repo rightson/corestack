@@ -132,3 +132,174 @@ export const sshErrorNotifications = pgTable('ssh_error_notifications', {
 }, (table) => ({
   uniqueProjectAccount: unique().on(table.projectId, table.sshAccountId),
 }));
+
+// ===== RBAC Tables =====
+
+// Groups table
+export const groups = pgTable('groups', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  groupType: varchar('group_type', { length: 50 }).notNull(), // 'project' | 'cross-project' | 'functional'
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Group members junction table
+export const groupMembers = pgTable('group_members', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => groups.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+}, (table) => ({
+  uniqueGroupUser: unique().on(table.groupId, table.userId),
+}));
+
+// Group projects junction table (for cross-project groups)
+export const groupProjects = pgTable('group_projects', {
+  id: serial('id').primaryKey(),
+  groupId: integer('group_id').references(() => groups.id, { onDelete: 'cascade' }).notNull(),
+  projectId: integer('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  addedAt: timestamp('added_at').defaultNow().notNull(),
+}, (table) => ({
+  uniqueGroupProject: unique().on(table.groupId, table.projectId),
+}));
+
+// Roles table
+export const roles = pgTable('roles', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  displayName: varchar('display_name', { length: 255 }).notNull(),
+  description: text('description'),
+  roleType: varchar('role_type', { length: 50 }).notNull(), // 'system' | 'project' | 'cross-project'
+  isActive: boolean('is_active').default(true).notNull(),
+  isBuiltIn: boolean('is_built_in').default(false).notNull(), // true for system-defined roles
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Permissions table
+export const permissions = pgTable('permissions', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  displayName: varchar('display_name', { length: 255 }).notNull(),
+  description: text('description'),
+  resourceType: varchar('resource_type', { length: 50 }).notNull(), // 'api' | 'ui' | 'data'
+  resourceName: varchar('resource_name', { length: 255 }).notNull(), // e.g., 'user', 'project'
+  action: varchar('action', { length: 50 }).notNull(), // 'create' | 'read' | 'update' | 'delete' | 'execute'
+  isActive: boolean('is_active').default(true).notNull(),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => ({
+  uniqueResourceAction: unique().on(table.resourceType, table.resourceName, table.action),
+}));
+
+// Role permissions junction table
+export const rolePermissions = pgTable('role_permissions', {
+  id: serial('id').primaryKey(),
+  roleId: integer('role_id').references(() => roles.id, { onDelete: 'cascade' }).notNull(),
+  permissionId: integer('permission_id').references(() => permissions.id, { onDelete: 'cascade' }).notNull(),
+  grantedAt: timestamp('granted_at').defaultNow().notNull(),
+  grantedBy: integer('granted_by').references(() => users.id),
+}, (table) => ({
+  uniqueRolePermission: unique().on(table.roleId, table.permissionId),
+}));
+
+// User system roles
+export const userSystemRoles = pgTable('user_system_roles', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  roleId: integer('role_id').references(() => roles.id, { onDelete: 'cascade' }).notNull(),
+  grantedAt: timestamp('granted_at').defaultNow().notNull(),
+  grantedBy: integer('granted_by').references(() => users.id),
+  expiresAt: timestamp('expires_at'), // optional expiration
+}, (table) => ({
+  uniqueUserRole: unique().on(table.userId, table.roleId),
+}));
+
+// User project roles (enhanced version of project_members)
+export const userProjectRoles = pgTable('user_project_roles', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  projectId: integer('project_id').references(() => projects.id, { onDelete: 'cascade' }).notNull(),
+  roleId: integer('role_id').references(() => roles.id, { onDelete: 'cascade' }).notNull(),
+  grantedAt: timestamp('granted_at').defaultNow().notNull(),
+  grantedBy: integer('granted_by').references(() => users.id),
+  expiresAt: timestamp('expires_at'),
+}, (table) => ({
+  uniqueUserProjectRole: unique().on(table.userId, table.projectId, table.roleId),
+}));
+
+// User group roles
+export const userGroupRoles = pgTable('user_group_roles', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  groupId: integer('group_id').references(() => groups.id, { onDelete: 'cascade' }).notNull(),
+  roleId: integer('role_id').references(() => roles.id, { onDelete: 'cascade' }).notNull(),
+  grantedAt: timestamp('granted_at').defaultNow().notNull(),
+  grantedBy: integer('granted_by').references(() => users.id),
+  expiresAt: timestamp('expires_at'),
+}, (table) => ({
+  uniqueUserGroupRole: unique().on(table.userId, table.groupId, table.roleId),
+}));
+
+// External accounts (for NIS integration)
+export const externalAccounts = pgTable('external_accounts', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  projectId: integer('project_id').references(() => projects.id, { onDelete: 'cascade' }), // null for system-wide accounts
+  accountType: varchar('account_type', { length: 50 }).notNull(), // 'nis' | 'ldap' | 'ad' | 'other'
+  username: varchar('username', { length: 255 }).notNull(),
+  credentials: text('credentials'), // encrypted
+  metadata: jsonb('metadata'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => ({
+  uniqueAccountTypeProjectUser: unique().on(table.accountType, table.projectId, table.username),
+}));
+
+// Audit log for access control
+export const rbacAuditLog = pgTable('rbac_audit_log', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
+  action: varchar('action', { length: 100 }).notNull(), // 'grant_role' | 'revoke_role' | 'access_granted' | 'access_denied'
+  resourceType: varchar('resource_type', { length: 50 }),
+  resourceId: integer('resource_id'),
+  roleId: integer('role_id').references(() => roles.id, { onDelete: 'set null' }),
+  permissionId: integer('permission_id').references(() => permissions.id, { onDelete: 'set null' }),
+  result: varchar('result', { length: 50 }), // 'success' | 'denied' | 'error'
+  metadata: jsonb('metadata'),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Permission cache (for performance)
+export const permissionCache = pgTable('permission_cache', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  projectId: integer('project_id').references(() => projects.id, { onDelete: 'cascade' }), // null for system permissions
+  permissionId: integer('permission_id').references(() => permissions.id, { onDelete: 'cascade' }).notNull(),
+  hasPermission: boolean('has_permission').notNull(),
+  cacheKey: varchar('cache_key', { length: 255 }).notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Impersonation sessions (for admin user switching)
+export const impersonationSessions = pgTable('impersonation_sessions', {
+  id: serial('id').primaryKey(),
+  adminUserId: integer('admin_user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(), // The admin who is impersonating
+  impersonatedUserId: integer('impersonated_user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(), // The user being impersonated
+  sessionToken: varchar('session_token', { length: 255 }).notNull().unique(), // Unique token for this impersonation session
+  reason: text('reason'), // Optional reason for impersonation (audit purposes)
+  ipAddress: varchar('ip_address', { length: 45 }),
+  userAgent: text('user_agent'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull(), // Impersonation session expiry
+  endedAt: timestamp('ended_at'), // When the impersonation session ended
+});
