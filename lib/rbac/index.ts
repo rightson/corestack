@@ -88,3 +88,13 @@ export {
   SUPER_ADMIN_GROUP_NAME,
 } from './impersonation-service';
 export type { ImpersonationSession, StartImpersonationInput } from './impersonation-service';
+
+// Middleware & Utilities
+export {
+  requireAnyPermission,
+  requireAllPermissions,
+  checkResourcePermission,
+  checkPermissionRequirement,
+  extractProjectId,
+} from './middleware';
+export type { PermissionRequirement } from './middleware';
