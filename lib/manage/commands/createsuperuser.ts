@@ -80,6 +80,9 @@ export async function createSuperuserCommand(options: CreateSuperuserOptions = {
 
     logger.dimmed('Create an administrative user with full system access.\n');
 
+    // Store password for confirmation validation
+    let enteredPassword = '';
+
     const answers = await inquirer.prompt([
       {
         type: 'input',
@@ -110,6 +113,7 @@ export async function createSuperuserCommand(options: CreateSuperuserOptions = {
           if (!validation.valid) {
             return `Password requirements not met:\n  ${validation.errors.join('\n  ')}`;
           }
+          enteredPassword = input; // Store for confirmation check
           return true;
         },
       },
@@ -118,8 +122,8 @@ export async function createSuperuserCommand(options: CreateSuperuserOptions = {
         name: 'passwordConfirm',
         message: 'Password (again):',
         mask: '•',
-        validate: (input: string, answers?: { password?: string }) => {
-          return input === answers?.password || 'Passwords do not match';
+        validate: (input: string) => {
+          return input === enteredPassword || 'Passwords do not match';
         },
       },
     ]);
