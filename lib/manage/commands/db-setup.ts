@@ -133,8 +133,16 @@ async function setupPostgreSQL(connectionString: string, options: DbSetupOptions
       if (result.success) {
         spinner.succeed(chalk.green('Database schema pushed successfully'));
       } else {
-        spinner.warn(chalk.yellow('Database migration completed with warnings'));
-        logger.dimmed('  You may need to run migrations manually');
+        throw new Error(`Database migration failed: ${result.stderr || result.stdout}`);
+      }
+
+      spinner.text = 'Seeding built-in RBAC roles...';
+      spinner.start();
+      const seedResult = execCommand('npm run db:seed-rbac', { silent: true });
+      if (seedResult.success) {
+        spinner.succeed(chalk.green('Built-in RBAC roles seeded successfully'));
+      } else {
+        throw new Error(`RBAC seed failed: ${seedResult.stderr || seedResult.stdout}`);
       }
     }
   } catch (error: unknown) {
