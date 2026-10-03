@@ -3,7 +3,9 @@
 **Document Status**: Proposal
 **Created**: 2025-11-09
 **Version**: 1.0
-**Target Implementation**: Q1 2026
+**Target Implementation**: Not scheduled; effort estimates below are planning assumptions
+
+This is an unimplemented design proposal. Code blocks are illustrative, not a tested production implementation. Merging this document does not enable collection or approve deployment. Latency and capacity figures are targets, not measurements.
 
 ---
 
@@ -20,7 +22,7 @@ This proposal outlines the design and implementation of a lightweight, high-perf
 **Key Features**:
 - Sub-millisecond tracking overhead (< 0.5ms per event)
 - Real-time analytics dashboard
-- Privacy-focused design (GDPR compliant)
+- Privacy-focused design (compliance must be assessed before deployment)
 - Automatic route detection and categorization
 - Click heatmap visualization
 - API endpoint usage analytics
@@ -86,7 +88,7 @@ This proposal outlines the design and implementation of a lightweight, high-perf
 - No PII (Personally Identifiable Information) collection by default
 - Anonymized user identifiers
 - Configurable data retention policies
-- GDPR and privacy compliance built-in
+- Data minimization and access/deletion controls; compliance requires deployment-specific review
 
 ### 3. **Real-Time Insights**
 - Stream-based processing for live updates
@@ -310,7 +312,7 @@ The analytics system uses both BullMQ and Temporal, each optimized for different
 - Time on page (calculated on next navigation)
 - Exit page indicator
 
-**Implementation**: Next.js middleware intercepts all requests
+**Implementation**: A client navigation hook records rendered page views; middleware records server requests separately. Prefetch requests and asset loads must not be counted as page views. The current Next.js stack remains the baseline until any framework migration is explicitly accepted.
 
 **Example Event**:
 ```typescript
@@ -603,12 +605,11 @@ function sendTrackingEvent(event: TrackingEvent) {
 import { redis } from '@/lib/redis';
 
 const STREAM_KEY = 'tracking:events';
-const MAX_STREAM_LENGTH = 100000; // Trim to prevent unbounded growth
+// Retention must trim only acknowledged IDs; pending events remain recoverable.
 
 export async function trackPageView(data: PageViewData): Promise<void> {
   await redis.xadd(
     STREAM_KEY,
-    'MAXLEN', '~', MAX_STREAM_LENGTH, // Approximate trimming for performance
     '*', // Auto-generate ID
     'type', 'page_view',
     'data', JSON.stringify(data)
@@ -618,7 +619,6 @@ export async function trackPageView(data: PageViewData): Promise<void> {
 export async function trackClick(data: ClickData): Promise<void> {
   await redis.xadd(
     STREAM_KEY,
-    'MAXLEN', '~', MAX_STREAM_LENGTH,
     '*',
     'type', 'click',
     'data', JSON.stringify(data)
@@ -628,7 +628,6 @@ export async function trackClick(data: ClickData): Promise<void> {
 export async function trackAPICall(data: APICallData): Promise<void> {
   await redis.xadd(
     STREAM_KEY,
-    'MAXLEN', '~', MAX_STREAM_LENGTH,
     '*',
     'type', 'api_call',
     'data', JSON.stringify(data)
@@ -640,24 +639,48 @@ export async function trackAPICall(data: APICallData): Promise<void> {
 
 ```typescript
 // server/queue/workers/analytics-processor.ts
-import { Worker, Job } from 'bullmq';
+// This loop consumes Redis Streams directly; BullMQ is not its delivery engine.
+import { randomUUID } from 'crypto';
 import { redis } from '@/lib/redis';
 import { db } from '@/lib/db';
 import { pageViews, clickEvents, apiCalls } from '@/lib/db/schema';
 
 const STREAM_KEY = 'tracking:events';
 const CONSUMER_GROUP = 'analytics-processors';
-const CONSUMER_NAME = `processor-${process.pid}`;
+const CONSUMER_NAME = `processor-${randomUUID()}`;
+const CLAIM_IDLE_MS = 60_000; // Must exceed the maximum accepted processing time.
+let claimCursor = '0-0';
 const BATCH_SIZE = 100;
 
-// Create consumer group if not exists
-redis.xgroup('CREATE', STREAM_KEY, CONSUMER_GROUP, '0', 'MKSTREAM').catch(() => {});
+// Await group creation; only an already-existing group may be ignored.
+async function ensureConsumerGroup() {
+  try {
+    await redis.xgroup('CREATE', STREAM_KEY, CONSUMER_GROUP, '0', 'MKSTREAM');
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes('BUSYGROUP')) throw error;
+  }
+}
 
 // Worker to continuously consume from stream
 async function processEventStream() {
+  await ensureConsumerGroup();
   while (true) {
     try {
-      // Read batch of events
+      // Redis 7: recover messages owned by crashed or stalled consumers.
+      const claimed = await redis.xautoclaim(
+        STREAM_KEY, CONSUMER_GROUP, CONSUMER_NAME, CLAIM_IDLE_MS,
+        claimCursor, 'COUNT', BATCH_SIZE
+      );
+      claimCursor = claimed[0];
+      const recovered = claimed[1];
+      // claimed[2] contains deleted pending IDs: report data loss, never hide it.
+      if (claimed[2]?.length) console.error('Trimmed pending events:', claimed[2].length);
+      if (recovered.length > 0) {
+        await processBatch(recovered);
+        await redis.xack(STREAM_KEY, CONSUMER_GROUP, ...recovered.map(([id]) => id));
+      }
+
+      // Read new events after attempting pending-entry recovery.
       const results = await redis.xreadgroup(
         'GROUP', CONSUMER_GROUP, CONSUMER_NAME,
         'BLOCK', 5000, // 5 second timeout
@@ -689,12 +712,16 @@ async function processBatch(messages: any[]) {
   const apiCallBatch = [];
 
   for (const [id, fields] of messages) {
-    const type = fields[1]; // fields[0] is 'type', fields[1] is value
-    const data = JSON.parse(fields[3]); // fields[2] is 'data', fields[3] is value
+    const values = Object.fromEntries(
+      Array.from({ length: fields.length / 2 }, (_, i) => [fields[2 * i], fields[2 * i + 1]])
+    );
+    const type = values.type;
+    const data = JSON.parse(values.data);
 
     switch (type) {
       case 'page_view':
         pageViewBatch.push({
+          id, // Redis stream ID; stable across retries, fits varchar(26)
           route: data.route,
           params: data.params,
           timestamp: new Date(data.timestamp),
@@ -710,6 +737,7 @@ async function processBatch(messages: any[]) {
 
       case 'click':
         clickBatch.push({
+          id, // Redis stream ID; stable across retries, fits varchar(26)
           route: data.route,
           element: data.element,
           positionX: data.position.x,
@@ -723,6 +751,7 @@ async function processBatch(messages: any[]) {
 
       case 'api_call':
         apiCallBatch.push({
+          id, // Redis stream ID; stable across retries, fits varchar(26)
           endpoint: data.endpoint,
           method: data.method,
           statusCode: data.statusCode,
@@ -735,24 +764,37 @@ async function processBatch(messages: any[]) {
           userId: data.userId
         });
         break;
+      default:
+        throw new Error(`Unsupported event type: ${type}`);
     }
   }
 
-  // Batch insert to database
+  // Stable IDs make retry after partial insertion or XACK failure idempotent.
   if (pageViewBatch.length > 0) {
-    await db.insert(pageViews).values(pageViewBatch);
+    await db.insert(pageViews).values(pageViewBatch).onConflictDoNothing();
   }
   if (clickBatch.length > 0) {
-    await db.insert(clickEvents).values(clickBatch);
+    await db.insert(clickEvents).values(clickBatch).onConflictDoNothing();
   }
   if (apiCallBatch.length > 0) {
-    await db.insert(apiCalls).values(apiCallBatch);
+    await db.insert(apiCalls).values(apiCallBatch).onConflictDoNothing();
   }
 }
 
 // Start processing
-processEventStream();
+processEventStream().catch(error => {
+  console.error('Consumer startup failed:', error);
+  process.exitCode = 1;
+});
 ```
+
+The pending-entry recovery interval is not a delivery guarantee by itself. Keep raw
+stream entries until all consumer groups acknowledge them; do not use approximate
+MAXLEN trimming that can evict pending data. Use a durable Redis configuration and
+alert on pending age and deleted entries. A permanently invalid event requires a
+bounded retry policy and a durable dead-letter record before acknowledgment. The
+sketch deliberately leaves invalid events pending until that policy is implemented.
+Never recreate the stream under the same identity while retaining the old DB IDs.
 
 ### Temporal Workflows
 
@@ -1171,18 +1213,25 @@ export const analyticsRouter = router({
     .query(async ({ input }) => {
       const startDate = new Date(Date.now() - input.periodHours * 60 * 60 * 1000);
 
-      const results = await db
-        .select({
-          route: pageViews.route,
-          views: sql<number>`count(*)`,
-          uniqueVisitors: sql<number>`count(distinct ${pageViews.sessionId})`,
-          avgTimeOnPage: sql<number>`avg(extract(epoch from (lead(${pageViews.timestamp}) over (partition by ${pageViews.sessionId} order by ${pageViews.timestamp}) - ${pageViews.timestamp})))`
-        })
-        .from(pageViews)
-        .where(gte(pageViews.timestamp, startDate))
-        .groupBy(pageViews.route)
-        .orderBy(desc(sql`count(*)`))
-        .limit(input.limit);
+      // Compute the window result per event, then aggregate in the outer query.
+      // A next page load estimates dwell time, not active attention; exits are NULL.
+      const results = await db.execute(sql`
+        WITH sequenced AS (
+          SELECT route, session_id, timestamp,
+                 LEAD(timestamp) OVER (
+                   PARTITION BY session_id ORDER BY timestamp, id
+                 ) AS next_timestamp
+          FROM ${pageViews}
+          WHERE timestamp >= ${startDate}
+        )
+        SELECT route, COUNT(*) AS views,
+               COUNT(DISTINCT session_id) AS "uniqueVisitors",
+               AVG(EXTRACT(EPOCH FROM (next_timestamp - timestamp))) AS "avgTimeOnPage"
+        FROM sequenced
+        GROUP BY route
+        ORDER BY views DESC, route
+        LIMIT ${input.limit}
+      `);
 
       return results;
     }),
@@ -1370,15 +1419,23 @@ export const analytics1day = pgTable('analytics_1day', {
 
 ### Table Partitioning Strategy
 
+The Drizzle sketches above describe ordinary tables. A partitioned deployment must
+use a reviewed SQL migration with a composite `(id, timestamp)` key and matching
+Drizzle metadata/conflict targets. Do not mix the single-column primary key sketch
+with the partitioned DDL. Retention must identify actual child partitions via
+`pg_inherits` and verify their bounds; the name-prefix cleanup sketch is not safe
+to execute on a production database.
+
 **page_views** table: Partition by day using PostgreSQL native partitioning
 
 ```sql
 -- Create parent table
 CREATE TABLE page_views (
-  id VARCHAR(26) PRIMARY KEY,
+  id VARCHAR(26) NOT NULL,
   route VARCHAR(255) NOT NULL,
   -- ... other columns
-  timestamp TIMESTAMP NOT NULL
+  timestamp TIMESTAMP NOT NULL,
+  PRIMARY KEY (id, timestamp) -- Partition key must be included.
 ) PARTITION BY RANGE (timestamp);
 
 -- Create partitions (automated via migration or cron)
@@ -1639,7 +1696,7 @@ CREATE TABLE page_views_2025_11_09 PARTITION OF page_views
    - User agents parsed and stored as categories
    - No cross-session tracking after retention period
 
-### GDPR Compliance
+### Privacy Controls to Validate Before Deployment
 
 - **Right to Access**: Export user's tracking data
 - **Right to Erasure**: Delete all data for a user ID
@@ -1695,6 +1752,8 @@ export const analyticsConfig = {
    - Write to Redis stream → verify worker consumes
    - Test batch processing
    - Verify aggregation jobs
+   - Crash after read, after partial DB commit, and before XACK; reclaim and verify one row per event
+   - Exercise permanently invalid events and stream trimming alarms
 
 3. **Dashboard Queries**
    - Test hot routes query

@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "init": "./init.sh",
+    "run": "./run.sh",
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
@@ -19,6 +21,9 @@
     "queue:worker": "tsx server/queue/worker.ts",
     "temporal:worker": "tsx server/temporal/workers/main.worker.ts",
     "cli": "tsx cli/index.ts",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
     "prepare": "husky"
   },
   "dependencies": {
@@ -36,6 +41,7 @@
     "chalk": "^5.4.1",
     "commander": "^14.0.1",
     "drizzle-orm": "^0.44.6",
+    "inquirer": "^10.0.0",
     "ioredis": "^5.8.1",
     "jose": "^6.1.0",
     "ldapts": "^8.0.9",
