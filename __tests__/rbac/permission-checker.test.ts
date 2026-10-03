@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 /**
  * Permission Checker Tests
  *
@@ -64,7 +65,7 @@ describe('Permission Checker', () => {
   afterEach(async () => {
     // Clean up: delete test data
     if (testUserId) {
-      await db.delete(users).where({ id: testUserId });
+      await db.delete(users).where(eq(users.id, testUserId));
     }
   });
 

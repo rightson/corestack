@@ -116,7 +116,7 @@ export const examplePostRouter = router({
       const canUpdate = await checkResourcePermission(
         ctx.user.userId,
         'post.update',
-        post.authorId // Resource owner ID
+        post.authorId ?? undefined // Resource owner ID
       );
 
       if (!canUpdate) {

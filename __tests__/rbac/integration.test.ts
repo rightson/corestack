@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 /**
  * RBAC Integration Tests
  *
@@ -45,7 +46,7 @@ describe('RBAC Integration Tests', () => {
   afterAll(async () => {
     // Clean up
     if (userId) {
-      await db.delete(users).where({ id: userId });
+      await db.delete(users).where(eq(users.id, userId));
     }
   });
 
@@ -302,7 +303,7 @@ describe('RBAC Integration Tests', () => {
       expect(session?.sessionToken).toBeDefined();
 
       // Clean up
-      await db.delete(users).where({ id: targetUser.id });
+      await db.delete(users).where(eq(users.id, targetUser.id));
     });
   });
 

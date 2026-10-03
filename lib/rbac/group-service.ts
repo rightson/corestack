@@ -7,7 +7,7 @@
 import { db } from '@/lib/db';
 import { groups, groupMembers, groupProjects } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { CreateGroupInput, Group } from './types';
+import { CreateGroupInput, Group, GroupType } from './types';
 import { logAccessAttempt } from './audit-service';
 import { createLogger } from '@/lib/observability/logger';
 
@@ -65,7 +65,7 @@ export async function getGroupById(groupId: number): Promise<Group | null> {
  * List all groups
  */
 export async function listGroups(options?: {
-  groupType?: string;
+  groupType?: GroupType;
 }): Promise<Group[]> {
   try {
     let query = db.select().from(groups);

@@ -1,6 +1,7 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { type Context } from './context';
 import superjson from 'superjson';
+import { z } from 'zod';
 import { createLogger } from '@/lib/observability/logger';
 import { trpcRequestsTotal, trpcRequestDuration } from '@/lib/observability/metrics';
 
@@ -93,12 +94,16 @@ export const protectedProcedure = publicProcedure.use(async ({ ctx, next }) => {
  * ```
  */
 export function permissionProcedure(permission: string) {
-  return protectedProcedure.use(async ({ ctx, next, input }) => {
+  // Parse the project scope before authorization. A parser added by the caller
+  // runs after this middleware and otherwise leaves its input undefined here.
+  return protectedProcedure
+    .input(z.object({ projectId: z.number().int().positive().optional() }).passthrough().optional())
+    .use(async ({ ctx, next, input }) => {
     // Import dynamically to avoid circular dependency
     const { checkPermission } = await import('@/lib/rbac');
 
     // Extract projectId from input if it exists
-    const projectId = (input as any)?.projectId;
+    const projectId = input?.projectId;
 
     // Check permission
     const hasPermission = await checkPermission({

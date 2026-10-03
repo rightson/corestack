@@ -1,3 +1,4 @@
+import type { RoleType, ResourceType, Action, GroupType, AuditAction } from '@/lib/rbac/types';
 import { pgTable, serial, text, timestamp, varchar, jsonb, integer, boolean, unique } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
@@ -41,7 +42,7 @@ export const projects = pgTable('projects', {
   ownerId: integer('owner_id').references(() => users.id).notNull(),
   status: varchar('status', { length: 50 }).notNull().default('active'), // 'active', 'archived', 'completed'
   visibility: varchar('visibility', { length: 50 }).notNull().default('private'), // 'private', 'public'
-  metadata: jsonb('metadata'),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   lastAccessedAt: timestamp('last_accessed_at'),
@@ -140,8 +141,8 @@ export const groups = pgTable('groups', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  groupType: varchar('group_type', { length: 50 }).notNull(), // 'project' | 'cross-project' | 'functional'
-  metadata: jsonb('metadata'),
+  groupType: varchar('group_type', { length: 50 }).$type<GroupType>().notNull(), // 'project' | 'cross-project' | 'functional'
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -172,10 +173,10 @@ export const roles = pgTable('roles', {
   name: varchar('name', { length: 100 }).notNull().unique(),
   displayName: varchar('display_name', { length: 255 }).notNull(),
   description: text('description'),
-  roleType: varchar('role_type', { length: 50 }).notNull(), // 'system' | 'project' | 'cross-project'
+  roleType: varchar('role_type', { length: 50 }).$type<RoleType>().notNull(), // 'system' | 'project' | 'cross-project'
   isActive: boolean('is_active').default(true).notNull(),
   isBuiltIn: boolean('is_built_in').default(false).notNull(), // true for system-defined roles
-  metadata: jsonb('metadata'),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -186,11 +187,11 @@ export const permissions = pgTable('permissions', {
   name: varchar('name', { length: 100 }).notNull().unique(),
   displayName: varchar('display_name', { length: 255 }).notNull(),
   description: text('description'),
-  resourceType: varchar('resource_type', { length: 50 }).notNull(), // 'api' | 'ui' | 'data'
+  resourceType: varchar('resource_type', { length: 50 }).$type<ResourceType>().notNull(), // 'api' | 'ui' | 'data'
   resourceName: varchar('resource_name', { length: 255 }).notNull(), // e.g., 'user', 'project'
-  action: varchar('action', { length: 50 }).notNull(), // 'create' | 'read' | 'update' | 'delete' | 'execute'
+  action: varchar('action', { length: 50 }).$type<Action>().notNull(), // 'create' | 'read' | 'update' | 'delete' | 'execute'
   isActive: boolean('is_active').default(true).notNull(),
-  metadata: jsonb('metadata'),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => ({
   uniqueResourceAction: unique().on(table.resourceType, table.resourceName, table.action),
@@ -253,7 +254,7 @@ export const externalAccounts = pgTable('external_accounts', {
   accountType: varchar('account_type', { length: 50 }).notNull(), // 'nis' | 'ldap' | 'ad' | 'other'
   username: varchar('username', { length: 255 }).notNull(),
   credentials: text('credentials'), // encrypted
-  metadata: jsonb('metadata'),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -265,13 +266,13 @@ export const externalAccounts = pgTable('external_accounts', {
 export const rbacAuditLog = pgTable('rbac_audit_log', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id, { onDelete: 'set null' }),
-  action: varchar('action', { length: 100 }).notNull(), // 'grant_role' | 'revoke_role' | 'access_granted' | 'access_denied'
+  action: varchar('action', { length: 100 }).$type<AuditAction>().notNull(), // 'grant_role' | 'revoke_role' | 'access_granted' | 'access_denied'
   resourceType: varchar('resource_type', { length: 50 }),
   resourceId: integer('resource_id'),
   roleId: integer('role_id').references(() => roles.id, { onDelete: 'set null' }),
   permissionId: integer('permission_id').references(() => permissions.id, { onDelete: 'set null' }),
   result: varchar('result', { length: 50 }), // 'success' | 'denied' | 'error'
-  metadata: jsonb('metadata'),
+  metadata: jsonb('metadata').$type<Record<string, unknown>>(),
   ipAddress: varchar('ip_address', { length: 45 }),
   userAgent: text('user_agent'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

@@ -7,7 +7,7 @@
 import { db } from '@/lib/db';
 import { permissions } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
-import { CreatePermissionInput, Permission } from './types';
+import { CreatePermissionInput, Permission, ResourceType, Action } from './types';
 import { logAccessAttempt } from './audit-service';
 import { createLogger } from '@/lib/observability/logger';
 
@@ -87,9 +87,9 @@ export async function getPermissionByName(name: string): Promise<Permission | nu
  * List all permissions
  */
 export async function listPermissions(options?: {
-  resourceType?: string;
+  resourceType?: ResourceType;
   resourceName?: string;
-  action?: string;
+  action?: Action;
   isActive?: boolean;
 }): Promise<Permission[]> {
   try {

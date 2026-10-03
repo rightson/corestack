@@ -59,14 +59,14 @@ const createRoleSchema = z.object({
   description: z.string().optional(),
   roleType: z.enum(['system', 'project', 'cross-project']),
   isBuiltIn: z.boolean().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 const updateRoleSchema = z.object({
   roleId: z.number(),
   displayName: z.string().min(1).max(255).optional(),
   description: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 const createPermissionSchema = z.object({
@@ -76,14 +76,14 @@ const createPermissionSchema = z.object({
   resourceType: z.enum(['api', 'ui', 'data']),
   resourceName: z.string().min(1).max(255),
   action: z.enum(['create', 'read', 'update', 'delete', 'execute']),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 const updatePermissionSchema = z.object({
   permissionId: z.number(),
   displayName: z.string().min(1).max(255).optional(),
   description: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 const assignRoleSchema = z.object({
@@ -105,14 +105,14 @@ const createGroupSchema = z.object({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
   groupType: z.enum(['project', 'cross-project', 'functional']),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 const updateGroupSchema = z.object({
   groupId: z.number(),
   name: z.string().min(1).max(255).optional(),
   description: z.string().optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 });
 
 // ===== Router Definition =====
@@ -122,7 +122,7 @@ export const rbacRouter = router({
   roles: router({
     list: permissionProcedure('rbac.role.read')
       .input(z.object({
-        roleType: z.string().optional(),
+        roleType: z.enum(['system', 'project', 'cross-project']).optional(),
         isActive: z.boolean().optional(),
         includeBuiltIn: z.boolean().optional(),
       }))
@@ -192,9 +192,9 @@ export const rbacRouter = router({
   permissions: router({
     list: permissionProcedure('rbac.permission.read')
       .input(z.object({
-        resourceType: z.string().optional(),
+        resourceType: z.enum(['api', 'ui', 'data']).optional(),
         resourceName: z.string().optional(),
-        action: z.string().optional(),
+        action: z.enum(['create', 'read', 'update', 'delete', 'execute']).optional(),
         isActive: z.boolean().optional(),
       }))
       .query(async ({ input }) => {
@@ -290,7 +290,7 @@ export const rbacRouter = router({
   groups: router({
     list: permissionProcedure('rbac.group.read')
       .input(z.object({
-        groupType: z.string().optional(),
+        groupType: z.enum(['project', 'cross-project', 'functional']).optional(),
       }))
       .query(async ({ input }) => {
         return await listGroups(input);

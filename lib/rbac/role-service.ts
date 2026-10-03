@@ -7,7 +7,7 @@
 import { db } from '@/lib/db';
 import { roles, rolePermissions, permissions } from '@/lib/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
-import { CreateRoleInput, Role } from './types';
+import { CreateRoleInput, Role, RoleType } from './types';
 import { logAccessAttempt } from './audit-service';
 import { createLogger } from '@/lib/observability/logger';
 
@@ -86,7 +86,7 @@ export async function getRoleByName(name: string): Promise<Role | null> {
  * List all roles
  */
 export async function listRoles(options?: {
-  roleType?: string;
+  roleType?: RoleType;
   isActive?: boolean;
   includeBuiltIn?: boolean;
 }): Promise<Role[]> {
