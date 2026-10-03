@@ -27,7 +27,8 @@
     "docker:logs": "docker compose logs -f",
     "prepare": "husky",
     "test:rbac-authorization": "node tests/rbac-authorization.cjs",
-    "test:rbac-procedure": "node tests/rbac-procedure.cjs"
+    "test:rbac-procedure": "node tests/rbac-procedure.cjs",
+    "test:auth-impersonation": "node tests/auth-impersonation.cjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",
