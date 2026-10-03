@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "init": "./init.sh",
+    "run": "./run.sh",
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
@@ -19,6 +21,9 @@
     "queue:worker": "tsx server/queue/worker.ts",
     "temporal:worker": "tsx server/temporal/workers/main.worker.ts",
     "cli": "tsx cli/index.ts",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
     "prepare": "husky"
   },
   "dependencies": {
