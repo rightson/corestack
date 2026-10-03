@@ -12,92 +12,18 @@ import {
   userSystemRoles,
   userProjectRoles,
   userGroupRoles,
+  groupProjects,
   permissionCache,
 } from '@/lib/db/schema';
-import { eq, and, or, isNull, lt } from 'drizzle-orm';
+import { eq, and, or, isNull, lt, gt } from 'drizzle-orm';
 import { CheckPermissionOptions } from './types';
 import { logPermissionGranted, logPermissionDenied } from './audit-service';
 import { createLogger } from '@/lib/observability/logger';
 
 const logger = createLogger({ service: 'rbac-permission-checker' });
 
-// Cache TTL in seconds (5 minutes)
-const CACHE_TTL_SECONDS = 300;
-
-/**
- * Generate a cache key for permission checks
- */
-function generateCacheKey(userId: number, permission: string, projectId?: number): string {
-  return `user:${userId}:perm:${permission}${projectId ? `:project:${projectId}` : ''}`;
-}
-
-/**
- * Check cached permission
- */
-async function checkPermissionCache(
-  userId: number,
-  permissionName: string,
-  projectId?: number
-): Promise<boolean | null> {
-  const cacheKey = generateCacheKey(userId, permissionName, projectId);
-
-  try {
-    const cached = await db
-      .select()
-      .from(permissionCache)
-      .where(
-        and(
-          eq(permissionCache.cacheKey, cacheKey),
-          lt(new Date(), permissionCache.expiresAt)
-        )
-      )
-      .limit(1);
-
-    if (cached.length > 0) {
-      logger.debug({ userId, permission: permissionName, projectId, cached: true }, 'Permission cache hit');
-      return cached[0].hasPermission;
-    }
-
-    return null;
-  } catch (error) {
-    logger.error({ error, userId, permission: permissionName }, 'Failed to check permission cache');
-    return null;
-  }
-}
-
-/**
- * Cache a permission result
- */
-async function cachePermissionResult(
-  userId: number,
-  permissionId: number,
-  permissionName: string,
-  projectId: number | undefined,
-  hasPermission: boolean
-): Promise<void> {
-  const cacheKey = generateCacheKey(userId, permissionName, projectId);
-  const expiresAt = new Date(Date.now() + CACHE_TTL_SECONDS * 1000);
-
-  try {
-    // Delete existing cache entry if it exists
-    await db.delete(permissionCache).where(eq(permissionCache.cacheKey, cacheKey));
-
-    // Insert new cache entry
-    await db.insert(permissionCache).values({
-      userId,
-      projectId: projectId ?? null,
-      permissionId,
-      hasPermission,
-      cacheKey,
-      expiresAt,
-    });
-
-    logger.debug({ userId, permission: permissionName, projectId, hasPermission }, 'Permission cached');
-  } catch (error) {
-    logger.error({ error, userId, permission: permissionName }, 'Failed to cache permission');
-    // Don't throw - caching failure shouldn't break permission checks
-  }
-}
+// Authorization cache reads/writes are disabled until grant revisions provide
+// race-safe invalidation. A stale positive must never survive a revoked grant.
 
 /**
  * Get all user's roles (system, project, and group)
@@ -115,7 +41,7 @@ async function getUserAllRoles(userId: number, projectId?: number): Promise<numb
           eq(userSystemRoles.userId, userId),
           or(
             isNull(userSystemRoles.expiresAt),
-            lt(new Date(), userSystemRoles.expiresAt)
+            gt(userSystemRoles.expiresAt, new Date())
           )
         )
       );
@@ -133,7 +59,7 @@ async function getUserAllRoles(userId: number, projectId?: number): Promise<numb
             eq(userProjectRoles.projectId, projectId),
             or(
               isNull(userProjectRoles.expiresAt),
-              lt(new Date(), userProjectRoles.expiresAt)
+              gt(userProjectRoles.expiresAt, new Date())
             )
           )
         );
@@ -144,12 +70,14 @@ async function getUserAllRoles(userId: number, projectId?: number): Promise<numb
       const groupRoles = await db
         .select({ roleId: userGroupRoles.roleId })
         .from(userGroupRoles)
+        .innerJoin(groupProjects, eq(userGroupRoles.groupId, groupProjects.groupId))
         .where(
           and(
             eq(userGroupRoles.userId, userId),
+            eq(groupProjects.projectId, projectId),
             or(
               isNull(userGroupRoles.expiresAt),
-              lt(new Date(), userGroupRoles.expiresAt)
+              gt(userGroupRoles.expiresAt, new Date())
             )
           )
         );
@@ -202,22 +130,11 @@ async function getRolePermissions(roleIds: number[]): Promise<string[]> {
  * 3. Project-level permissions (user_project_roles)
  */
 export async function checkPermission(options: CheckPermissionOptions): Promise<boolean> {
-  const { userId, permission, projectId, useCache = true } = options;
+  const { userId, permission, projectId } = options;
 
   logger.debug({ userId, permission, projectId }, 'Checking permission');
 
   try {
-    // 1. Check cache first if enabled
-    if (useCache) {
-      const cached = await checkPermissionCache(userId, permission, projectId);
-      if (cached !== null) {
-        if (!cached) {
-          await logPermissionDenied(userId, permission, projectId, 'cached_denial');
-        }
-        return cached;
-      }
-    }
-
     // 2. Get the permission ID
     const perm = await db
       .select()
@@ -236,19 +153,12 @@ export async function checkPermission(options: CheckPermissionOptions): Promise<
       return false;
     }
 
-    const permissionId = perm[0].id;
-
     // 3. Get all user's roles (system, project, group)
     const userRoles = await getUserAllRoles(userId, projectId);
 
     if (userRoles.length === 0) {
       logger.debug({ userId, permission, projectId }, 'User has no roles');
       await logPermissionDenied(userId, permission, projectId, 'no_roles');
-
-      // Cache the denial
-      if (useCache) {
-        await cachePermissionResult(userId, permissionId, permission, projectId, false);
-      }
 
       return false;
     }
@@ -258,11 +168,6 @@ export async function checkPermission(options: CheckPermissionOptions): Promise<
 
     // 5. Check if permission exists
     const hasPermission = userPermissions.includes(permission);
-
-    // 6. Cache result
-    if (useCache) {
-      await cachePermissionResult(userId, permissionId, permission, projectId, hasPermission);
-    }
 
     // 7. Audit log
     if (hasPermission) {

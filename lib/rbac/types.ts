@@ -96,6 +96,7 @@ export interface CheckPermissionOptions {
   userId: number;
   permission: string;
   projectId?: number;
+  /** Reserved for compatibility; checks currently read grants directly for safe revocation. */
   useCache?: boolean;
 }
 

@@ -20,7 +20,8 @@
     "queue:worker": "tsx server/queue/worker.ts",
     "temporal:worker": "tsx server/temporal/workers/main.worker.ts",
     "cli": "tsx cli/index.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:rbac-authorization": "node tests/rbac-authorization.cjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",
@@ -55,6 +56,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@temporalio/testing": "^1.11.6",
