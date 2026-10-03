@@ -6,6 +6,8 @@
 
 set -e
 
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -96,15 +98,10 @@ fi
 if [ "$USE_DOCKER" = true ]; then
   echo -e "${BLUE}[1/2] Starting Docker services...${NC}"
 
-  # Check if services are already running
-  if docker compose ps | grep -q "Up"; then
-    echo -e "${GREEN}✓ Docker services already running${NC}"
-  else
-    docker compose up -d
-    echo -e "${GREEN}✓ Docker services started${NC}"
-    echo -e "${YELLOW}  Waiting for services to be ready...${NC}"
-    sleep 5
-  fi
+  # Idempotently start every service, including partially stopped stacks.
+  docker compose version > /dev/null
+  docker compose up -d
+  echo -e "${GREEN}✓ Docker services started${NC}"
   echo ""
 fi
 
@@ -118,30 +115,32 @@ run_foreground() {
   echo -e "${YELLOW}Press Ctrl+C to stop all services${NC}"
   echo ""
 
-  # Trap Ctrl+C to cleanup
-  trap 'echo -e "\n${YELLOW}Stopping services...${NC}"; kill 0; exit 0' INT
+  # Track only this invocation's processes; never signal the caller's group.
+  SERVICE_PIDS=()
+  cleanup() {
+    local pid
+    trap - EXIT INT TERM
+    for pid in "${SERVICE_PIDS[@]}"; do
+      kill "$pid" 2>/dev/null || true
+    done
+    for pid in "${SERVICE_PIDS[@]}"; do
+      wait "$pid" 2>/dev/null || true
+    done
+  }
+  trap cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
 
-  # Start services in background
-  npm run ws:server &
-  WS_PID=$!
+  # Invoke the programs directly so cleanup does not leave npm's children alive.
+  for service in server/websocket.ts server/queue/worker.ts server/temporal/workers/main.worker.ts; do
+    node_modules/.bin/tsx "$service" &
+    SERVICE_PIDS+=("$!")
+  done
+  node_modules/.bin/next dev --turbopack &
+  APP_PID=$!
+  SERVICE_PIDS+=("$APP_PID")
+  wait "$APP_PID"
 
-  npm run queue:worker &
-  QUEUE_PID=$!
-
-  npm run temporal:worker &
-  TEMPORAL_PID=$!
-
-  # Wait a bit for services to start
-  sleep 2
-  echo -e "${GREEN}✓ WebSocket server started (PID: $WS_PID)${NC}"
-  echo -e "${GREEN}✓ Queue worker started (PID: $QUEUE_PID)${NC}"
-  echo -e "${GREEN}✓ Temporal worker started (PID: $TEMPORAL_PID)${NC}"
-  echo ""
-
-  # Start Next.js in foreground (this is the main process)
-  echo -e "${GREEN}✓ Starting Next.js dev server...${NC}"
-  echo ""
-  npm run dev
 }
 
 # Function to run services in tmux
@@ -166,19 +165,19 @@ run_tmux() {
   echo -e "${YELLOW}Creating tmux session: $SESSION_NAME${NC}"
 
   # Create new session with Next.js
-  tmux new-session -d -s $SESSION_NAME -n "nextjs"
+  tmux new-session -d -s "$SESSION_NAME" -c "$PWD" -n "nextjs"
   tmux send-keys -t $SESSION_NAME:0 "npm run dev" C-m
 
   # Create window for WebSocket server
-  tmux new-window -t $SESSION_NAME:1 -n "websocket"
+  tmux new-window -c "$PWD" -t $SESSION_NAME:1 -n "websocket"
   tmux send-keys -t $SESSION_NAME:1 "npm run ws:server" C-m
 
   # Create window for Queue worker
-  tmux new-window -t $SESSION_NAME:2 -n "queue"
+  tmux new-window -c "$PWD" -t $SESSION_NAME:2 -n "queue"
   tmux send-keys -t $SESSION_NAME:2 "npm run queue:worker" C-m
 
   # Create window for Temporal worker
-  tmux new-window -t $SESSION_NAME:3 -n "temporal"
+  tmux new-window -c "$PWD" -t $SESSION_NAME:3 -n "temporal"
   tmux send-keys -t $SESSION_NAME:3 "npm run temporal:worker" C-m
 
   # Select first window

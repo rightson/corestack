@@ -60,7 +60,7 @@ cd corestack
 - ✅ Installs dependencies
 - ✅ Generates secure environment variables
 - ✅ Starts Docker services (PostgreSQL, Redis, Temporal)
-- ✅ Runs database migrations
+- ✅ Synchronizes the development database schema
 - ✅ Seeds initial data (creates admin user)
 
 **What `./run.sh` does:**
@@ -113,7 +113,7 @@ cp .env.example .env
 # Edit .env with your configuration
 # Generate secrets:
 #   JWT_SECRET: openssl rand -base64 32
-#   SSH_ENCRYPTION_KEY: openssl rand -base64 32
+#   SSH_ENCRYPTION_KEY: openssl rand -hex 32
 ```
 
 3. Start services:
@@ -121,8 +121,8 @@ cp .env.example .env
 # Start PostgreSQL, Redis, and Temporal
 docker compose up -d
 
-# Run database migrations
-npm run db:migrate
+# Synchronize the development database schema
+npm run db:push
 
 # Seed database
 npm run db:seed
@@ -224,7 +224,7 @@ npm run type-check   # TypeScript validation
 
 ### Database
 ```bash
-npm run db:migrate   # Run migrations
+npm run db:migrate # Apply generated migrations (when available)
 npm run db:seed      # Seed initial data
 npm run db:generate  # Generate migrations
 npm run db:push      # Push schema to database (development)

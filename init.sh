@@ -6,6 +6,9 @@
 
 set -e
 
+# Resolve paths relative to the repository, including calls from another directory.
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -146,12 +149,8 @@ install_dependencies() {
 
   if [ "$OFFLINE_MODE" = true ]; then
     echo -e "${YELLOW}⚠ Offline mode: Using npm cache only${NC}"
-    if npm install --offline --prefer-offline 2>/dev/null; then
-      echo -e "${GREEN}✓ Dependencies installed from cache${NC}"
-    else
-      echo -e "${YELLOW}⚠ Some dependencies missing from cache, trying regular install...${NC}"
-      npm install --prefer-offline
-    fi
+    npm install --offline --prefer-offline
+    echo -e "${GREEN}✓ Dependencies installed from cache${NC}"
   else
     npm install
     echo -e "${GREEN}✓ Dependencies installed${NC}"
@@ -179,7 +178,7 @@ setup_env() {
 
   # Generate secure secrets
   JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
-  SSH_KEY=$(openssl rand -base64 32 2>/dev/null || node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")
+  SSH_KEY=$(openssl rand -hex 32 2>/dev/null || node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
 
   # Update .env file
   if [[ "$OS" == "macos" ]]; then
@@ -202,7 +201,12 @@ start_services() {
 
   if [ "$USE_DOCKER" = true ]; then
     echo -e "${YELLOW}  Starting Docker services (PostgreSQL, Redis, Temporal)...${NC}"
-    docker compose up -d
+    docker compose version > /dev/null
+    if [ "$OFFLINE_MODE" = true ]; then
+      docker compose up -d --pull never
+    else
+      docker compose up -d
+    fi
 
     # Wait for services to be ready
     echo -e "${YELLOW}  Waiting for services to be ready...${NC}"
@@ -246,7 +250,14 @@ setup_database() {
 
   # Run migrations
   echo -e "${YELLOW}  Running database migrations...${NC}"
-  npm run db:migrate
+  if [ -f drizzle/meta/_journal.json ]; then
+    npm run db:migrate
+  else
+    # This development repository does not yet ship migration files.
+    # Match manage.ts db-setup; never force destructive schema changes.
+    echo -e "${YELLOW}  No migrations found; synchronizing the development schema${NC}"
+    npm run db:push
+  fi
   echo -e "${GREEN}✓ Database migrations completed${NC}"
 
   # Seed database

@@ -84,7 +84,7 @@ npm run init -- --docker
 3. Installs npm dependencies
 4. Generates secure environment variables (.env)
 5. Starts PostgreSQL, Redis, and Temporal in Docker
-6. Runs database migrations
+6. Synchronizes the development database schema
 7. Seeds initial data (creates default admin user)
 
 ### Local Services Setup
@@ -334,7 +334,7 @@ docker compose restart        # Restart all services
 ### Database Management
 
 ```bash
-npm run db:migrate            # Run database migrations
+npm run db:migrate         # Apply generated migrations (when available)
 npm run db:seed               # Seed initial data
 npm run db:studio             # Open Drizzle Studio (database GUI)
 npm run db:push               # Push schema changes (dev only)
