@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: web-seed-postgres
+    container_name: corestack-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -18,7 +18,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: web-seed-redis
+    container_name: corestack-redis
     ports:
       - '6379:6379'
     volumes:
@@ -31,7 +31,7 @@ services:
 
   temporal:
     image: temporalio/auto-setup:latest
-    container_name: web-seed-temporal
+    container_name: corestack-temporal
     ports:
       - '7233:7233'
     environment:
@@ -52,7 +52,7 @@ services:
 
   temporal-ui:
     image: temporalio/ui:latest
-    container_name: web-seed-temporal-ui
+    container_name: corestack-temporal-ui
     ports:
       - '8080:8080'
     environment:
