@@ -23,13 +23,25 @@ function load(relative, imports) {
 }
 const validators = load('lib/manage/utils/validators.ts', { './platform.js': {} });
 let inserts = 0;
+let roleAssignments = 0;
+let groupAssignments = 0;
 const sql = async strings => {
   const query = strings.join('?');
   if (query.includes('information_schema')) return [{ exists: true }];
-  if (query.includes('INSERT INTO users')) inserts++;
+  if (query.includes('INSERT INTO users')) {
+    inserts++;
+    assert.ok(query.includes('password'));
+    assert.ok(!query.includes('password_hash'));
+    return [{ id: 42 }];
+  }
+  if (query.includes("name = 'system_admin'")) return [{ id: 7 }];
+  if (query.includes("name = 'super_admins'")) return [{ id: 8 }];
+  if (query.includes('INSERT INTO user_system_roles')) roleAssignments++;
+  if (query.includes('INSERT INTO group_members')) groupAssignments++;
   return [];
 };
 sql.end = async () => {};
+sql.begin = async callback => callback(sql);
 const command = load('lib/manage/commands/createsuperuser.ts', {
   fs: { existsSync: () => true }, path: { join: path.join }, chalk,
   ora: () => ({ start: () => ({ succeed: noop, fail: noop }) }),
@@ -52,5 +64,7 @@ const command = load('lib/manage/commands/createsuperuser.ts', {
 });
 command.createSuperuserCommand().then(() => {
   assert.equal(inserts, 1);
-  console.log('PASS: input-only validation, mismatch rejection, accepted-password retention, user creation');
+  assert.equal(roleAssignments, 1);
+  assert.equal(groupAssignments, 1);
+  console.log('PASS: password confirmation, schema-compatible user creation, admin RBAC bindings');
 }).catch(error => { console.error(error); process.exitCode = 1; });

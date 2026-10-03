@@ -190,20 +190,46 @@ export async function createSuperuserCommand(options: CreateSuperuserOptions = {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Create user
-    await sql`
-      INSERT INTO users (username, name, email, password_hash, auth_type, role, created_at, updated_at)
-      VALUES (
-        ${username.toLowerCase()},
-        ${username},
-        ${email.toLowerCase()},
-        ${passwordHash},
-        'email',
-        'admin',
-        NOW(),
-        NOW()
-      )
-    `;
+    await sql.begin(async (transaction) => {
+      const [createdUser] = await transaction`
+        INSERT INTO users (username, name, email, password, auth_type, must_change_password, created_at, updated_at)
+        VALUES (
+          ${username.toLowerCase()},
+          ${username},
+          ${email.toLowerCase()},
+          ${passwordHash},
+          'email',
+          FALSE,
+          NOW(),
+          NOW()
+        )
+        RETURNING id
+      `;
+
+      const [adminRole] = await transaction`
+        SELECT id FROM roles
+        WHERE name = 'system_admin' AND is_active = TRUE
+        LIMIT 1
+      `;
+      const [superAdminGroup] = await transaction`
+        SELECT id FROM groups
+        WHERE name = 'super_admins'
+        LIMIT 1
+      `;
+
+      if (!adminRole || !superAdminGroup) {
+        throw new Error('RBAC seed is missing system_admin or super_admins');
+      }
+
+      await transaction`
+        INSERT INTO user_system_roles (user_id, role_id, granted_by)
+        VALUES (${createdUser.id}, ${adminRole.id}, ${createdUser.id})
+      `;
+      await transaction`
+        INSERT INTO group_members (group_id, user_id)
+        VALUES (${superAdminGroup.id}, ${createdUser.id})
+      `;
+    });
 
     spinner.succeed(chalk.green('Superuser created successfully!'));
 
